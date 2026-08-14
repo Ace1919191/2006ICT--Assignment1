@@ -265,6 +265,42 @@ public class Game {
         fallTimer.play();
     }
 
+    // Checking entire grid for completed rows
+    private void clearFullRows() {
+        // Starting from bottom because rows above will move down
+        for (int row = fieldHeight - 1; row >= 0; row--) {
+            if (isRowFull(row)) {
+                removeRow(row);
+                // Checking same row again because another row has moved into it
+                row++;
+            }
+        }
+    }
+
+    // Checking if every grid space in a row contains a block
+    private boolean isRowFull(int row) {
+        for (int column = 0; column < fieldWidth; column++) {
+            if (lockedBlocks[row][column] == null) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // Removing completed row and moving all rows above down by one
+    private void removeRow(int completedRow) {
+        // Moving every row above the completed row down one position
+        for (int row = completedRow; row > 0; row--) {
+            for (int column = 0; column < fieldWidth; column++) {
+                lockedBlocks[row][column] = lockedBlocks[row - 1][column];
+            }
+        }
+        // Clearing the new top row
+        for (int column = 0; column < fieldWidth; column++) {
+            lockedBlocks[0][column] = null;
+        }
+    }
+
     // Spawning new piece at top centre of Tetris grid
     private void spawnPiece() {
         anchorRow = 1;
@@ -295,7 +331,9 @@ public class Game {
         } else {
             // Locking piece into grid once it can no longer move down
             lockPiece();
-            // Spawning another piece after previous piece has landed
+            // Checking for and removing any completed rows
+            clearFullRows();
+            // Spawning another random piece
             spawnPiece();
         }
     }

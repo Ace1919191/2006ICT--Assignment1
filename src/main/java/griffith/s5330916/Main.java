@@ -117,7 +117,6 @@ public class Main extends Application {
         settingsButton.setStyle(menuButtonStyle);
         exitButton.setStyle(menuButtonStyle);
 
-
         // Defining function calls on button press
         playButton.setOnAction(ignored -> Game.show(stage, () -> showMainWindow(stage)));
         scoresButton.setOnAction(ignored -> HighScores.show(stage, () -> showMainWindow(stage)));

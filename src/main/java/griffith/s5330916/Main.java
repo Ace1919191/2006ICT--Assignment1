@@ -120,16 +120,9 @@ public class Main extends Application {
 
         // Defining function calls on button press
         playButton.setOnAction(ActionEvent-> System.out.println("Start Game"));
-
-        scoresButton.setOnAction(ActionEvent -> System.out.println("High Scores Page"));
-
-        settingsButton.setOnAction(event ->
-                Settings.show(stage, () -> showMainWindow(stage)));
-
-        exitButton.setOnAction(event -> {
-            stage.close();
-            System.exit(0);
-        });
+        scoresButton.setOnAction(ignored -> HighScores.show(stage, () -> showMainWindow(stage)));
+        settingsButton.setOnAction(event -> Settings.show(stage, () -> showMainWindow(stage)));
+        exitButton.setOnAction(event -> {stage.close(); System.exit(0);});
 
         menuLayout.getChildren().addAll(playButton, scoresButton, settingsButton, exitButton);
 

@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -28,29 +29,83 @@ public class Game {
             Paths.get("src", "main", "resources", "settings.json");
 
     // Defining original Tetris piece using positions relative to the anchor block
-    private static final int[][] PIECE_SHAPE = {
-            {0, 0},
-            {0, -1},
-            {0, 1},
-            {1, 0}
-    };
-    // Current shape is separate so the piece can be rotated
+    // Defining all Tetris piece shapes and their colours
+    private enum PieceType {
+        I(new int[][]{
+                {0, -1},
+                {0, 0},
+                {0, 1},
+                {0, 2}
+        }, "cyan", true),
+
+        O(new int[][]{
+                {0, 0},
+                {0, 1},
+                {1, 0},
+                {1, 1}
+        }, "yellow", false),
+
+        T(new int[][]{
+                {0, -1},
+                {0, 0},
+                {0, 1},
+                {1, 0}
+        }, "purple", true),
+
+        L(new int[][]{
+                {-1, 1},
+                {0, -1},
+                {0, 0},
+                {0, 1}
+        }, "orange", true),
+
+        J(new int[][]{
+                {-1, -1},
+                {0, -1},
+                {0, 0},
+                {0, 1}
+        }, "blue", true),
+
+        S(new int[][]{
+                {0, 0},
+                {0, 1},
+                {1, -1},
+                {1, 0}
+        }, "green", true),
+
+        Z(new int[][]{
+                {0, -1},
+                {0, 0},
+                {1, 0},
+                {1, 1}
+        }, "red", true);
+
+        private final int[][] shape;
+        private final String colour;
+        private final boolean rotatable;
+
+        PieceType(int[][] shape, String colour, boolean rotatable) {
+            this.shape = shape;
+            this.colour = colour;
+            this.rotatable = rotatable;
+        }
+    }
+
+    // Random Object is used to select the next Tetris piece
+    private final Random random = new Random();
+
+    // Defining current Tetris piece
+    private PieceType currentPieceType;
     private int[][] currentPieceShape;
+
+    // Storing Piece Type allows placed blocks to retain their colour
+    private PieceType[][] lockedBlocks;
 
     // Defining styles used by cells in the Tetris grid
     private static final String EMPTY_CELL_STYLE =
             "-fx-background-color: black;" +
-                    "-fx-border-color: #555;" +
-                    "-fx-border-width: 0.5;";
-
-    private static final String FALLING_CELL_STYLE =
-            "-fx-background-color: yellow;" +
-                    "-fx-border-color: #555;" +
-                    "-fx-border-width: 0.5;";
-
-    private static final String LOCKED_CELL_STYLE = "-fx-background-color: #555;" +
-                    "-fx-border-color: black;" +
-                    "-fx-border-width: 0.5;";
+            "-fx-border-color: #555;" +
+            "-fx-border-width: 0.5;";
 
     private final Stage stage;
     private final Runnable onBack;
@@ -61,9 +116,6 @@ public class Game {
 
     // Each Pane represents one visible space in the Tetris grid
     private Pane[][] gridCells;
-
-    // Keeping track of blocks which have already landed
-    private boolean[][] lockedBlocks;
 
     // Defining current position of the anchor block
     private int anchorRow;
@@ -94,7 +146,7 @@ public class Game {
 
         // Creating arrays using selected field dimensions
         gridCells = new Pane[fieldHeight][fieldWidth];
-        lockedBlocks = new boolean[fieldHeight][fieldWidth];
+        lockedBlocks = new PieceType[fieldHeight][fieldWidth];
 
         // Creating title for Game Screen
         Label titleLabel = new Label("Tetris");
@@ -150,62 +202,58 @@ public class Game {
         gameLayout.getChildren().addAll(titleLabel, gameGrid, statusLabel, backButton);
 
         // Creating Scene for Game Screen
-        Scene gameScene = new Scene(gameLayout, 800, 600
-        );
+        Scene gameScene = new Scene(gameLayout, 800, 600);
 
         // Creating timer which moves current piece down every half second
         fallTimer = new Timeline(new KeyFrame(Duration.millis(500), ignored -> movePieceDown()));
-
         fallTimer.setCycleCount(Animation.INDEFINITE);
 
         // Detecting keyboard controls while Game Screen is open
         gameScene.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
-                    switch (event.getCode()) {
-                        // Moving piece left
-                        case LEFT:
-                        case A:
-                            movePieceHorizontal(-1);
-                            event.consume();
-                            break;
+            switch (event.getCode()) {
+                // Moving piece left
+                case LEFT:
+                case A:
+                    movePieceHorizontal(-1);
+                    event.consume();
+                    break;
 
-                        // Moving piece right
-                        case RIGHT:
-                        case D:
-                            movePieceHorizontal(1);
-                            event.consume();
-                            break;
+                // Moving piece right
+                case RIGHT:
+                case D:
+                    movePieceHorizontal(1);
+                    event.consume();
+                    break;
 
-                        // Rotating piece clockwise
-                        case UP:
-                        case W:
-                            rotatePiece();
-                            event.consume();
-                            break;
+                // Rotating piece clockwise
+                case UP:
+                case W:
+                    rotatePiece();
+                    event.consume();
+                    break;
 
 
-                        // Accelerating piece downwards
-                        case DOWN:
-                        case S:
-                            movePieceDown();
-                            fallTimer.setRate(5);
-                            event.consume();
-                            break;
-                    }
-                }
-        );
+                // Accelerating piece downwards
+                case DOWN:
+                case S:
+                    movePieceDown();
+                    fallTimer.setRate(5);
+                    event.consume();
+                    break;
+            }
+        });
 
         // Detecting when Down or S is released
         gameScene.addEventFilter(KeyEvent.KEY_RELEASED, event -> {
-                    switch (event.getCode()) {
-                        case DOWN:
-                        case S:
-                            // Returning falling speed back to normal
-                            fallTimer.setRate(1);
-                            event.consume();
-                            break;
-                    }
-                }
-        );
+            switch (event.getCode()) {
+                case DOWN:
+                case S:
+                    // Returning falling speed back to normal
+                    fallTimer.setRate(1);
+                    event.consume();
+                    break;
+            }
+        });
 
         // Rendering Game Scene onto existing Stage
         stage.setScene(gameScene);
@@ -219,11 +267,14 @@ public class Game {
 
     // Spawning new piece at top centre of Tetris grid
     private void spawnPiece() {
-        anchorRow = 0;
+        anchorRow = 1;
         anchorColumn = fieldWidth / 2;
 
-        // Resetting piece back to its original rotation
-        currentPieceShape = copyShape(PIECE_SHAPE);
+        // Selecting random Tetris piece
+        PieceType[] availablePieces = PieceType.values();
+        currentPieceType = availablePieces[random.nextInt(availablePieces.length)];
+        // Creating copy of selected shape so it can be rotated
+        currentPieceShape = copyShape(currentPieceType.shape);
 
         // Ending game if new piece cannot fit onto grid
         if (!canPlacePiece(anchorRow, anchorColumn)) {
@@ -261,6 +312,11 @@ public class Game {
 
     // Rotating current piece 90 degrees clockwise around anchor block
     private void rotatePiece() {
+        // Square piece does not need to be rotated
+        if (!currentPieceType.rotatable) {
+            return;
+        }
+
         int[][] rotatedShape = new int[currentPieceShape.length][2];
         for (int i = 0; i < currentPieceShape.length; i++) {
             int rowOffset = currentPieceShape[i][0];
@@ -299,7 +355,7 @@ public class Game {
             }
 
             // Checking if block would collide with landed piece
-            if (lockedBlocks[row][column]) {
+            if (lockedBlocks[row][column] != null) {
                 return false;
             }
         }
@@ -312,7 +368,8 @@ public class Game {
             int row = anchorRow + block[0];
             int column = anchorColumn + block[1];
 
-            lockedBlocks[row][column] = true;
+            // Saving Piece Type so placed block retains its colour
+            lockedBlocks[row][column] = currentPieceType;
         }
         renderGrid();
     }
@@ -322,8 +379,9 @@ public class Game {
         // Resetting cells to either empty or previously landed blocks
         for (int row = 0; row < fieldHeight; row++) {
             for (int column = 0; column < fieldWidth; column++) {
-                if (lockedBlocks[row][column]) {
-                    gridCells[row][column].setStyle(LOCKED_CELL_STYLE);
+                PieceType lockedPiece = lockedBlocks[row][column];
+                if (lockedPiece != null) {
+                    gridCells[row][column].setStyle(createPieceStyle(lockedPiece.colour));
                 } else {
                     gridCells[row][column].setStyle(EMPTY_CELL_STYLE);
                 }
@@ -335,11 +393,16 @@ public class Game {
             int row = anchorRow + block[0];
             int column = anchorColumn + block[1];
             if (row >= 0 && row < fieldHeight && column >= 0 && column < fieldWidth) {
-                gridCells[row][column].setStyle(
-                        FALLING_CELL_STYLE
-                );
+                gridCells[row][column].setStyle(createPieceStyle(currentPieceType.colour));
             }
         }
+    }
+
+    // Creating coloured block with border so individual cells remain visible
+    private static String createPieceStyle(String colour) {
+        return "-fx-background-color: " + colour + ";" +
+            "-fx-border-color: black;" +
+            "-fx-border-width: 2;";
     }
 
     // Creating separate copy of piece shape so it can be rotated
@@ -370,7 +433,6 @@ public class Game {
         if (matcher.find()) {
             return Integer.parseInt(matcher.group(1));
         }
-
         return defaultValue;
     }
 }

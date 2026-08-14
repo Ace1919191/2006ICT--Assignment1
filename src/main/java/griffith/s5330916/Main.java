@@ -18,9 +18,6 @@ import javafx.scene.image.ImageView;
 
 import java.net.URL;
 
-
-
-
 // The Main Class inherits the Application Object type from JavaFX
 public class Main extends Application {
     //Calling method decorator @Override tells the class not to inherit the start method from Application
@@ -125,7 +122,10 @@ public class Main extends Application {
         playButton.setOnAction(ActionEvent-> System.out.println("Start Game"));
         scoresButton.setOnAction(ActionEvent -> System.out.println("High Scores Page"));
         settingsButton.setOnAction(ActionEvent -> System.out.println("Settings Page"));
-        exitButton.setOnAction(ActionEvent -> System.out.println("Exit Game"));
+        exitButton.setOnAction(event -> {
+            stage.close();
+            System.exit(0);
+        });
 
         menuLayout.getChildren().addAll(playButton, scoresButton, settingsButton, exitButton);
 

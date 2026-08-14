@@ -123,7 +123,7 @@ public class Main extends Application {
 
         // Defining function calls on button press
         playButton.setOnAction(ActionEvent-> System.out.println("Start Game"));
-        scoresButton.setOnAction(ActionEvent -> System.out.println("High Scores Page"));
+        scoresButton.setOnAction(ignored -> HighScores.show(stage, () -> showMainWindow(stage)));
         settingsButton.setOnAction(ActionEvent -> System.out.println("Settings Page"));
         exitButton.setOnAction(ActionEvent -> System.out.println("Exit Game"));
 

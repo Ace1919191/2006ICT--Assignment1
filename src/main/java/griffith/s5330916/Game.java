@@ -2,9 +2,14 @@ package griffith.s5330916;
 
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
+import javafx.animation.Interpolator;
 import javafx.animation.Timeline;
+import javafx.animation.TranslateTransition;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Group;
+import javafx.scene.layout.StackPane;
+import javafx.scene.shape.Rectangle;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -109,11 +114,22 @@ public class Game {
     // Storing Piece Type allows placed blocks to retain their colour
     private PieceType[][] lockedBlocks;
 
+    // Cell size is stored so falling piece can be positioned smoothly
+    private double cellSize;
+
+    // Separate visual layer for currently falling piece
+    private Pane pieceOverlay;
+    private final Group fallingPieceGroup = new Group();
+
+    // Animations used when moving the falling piece
+    private TranslateTransition horizontalAnimation;
+    private TranslateTransition verticalAnimation;
+
     // Defining styles used by cells in the Tetris grid
     private static final String EMPTY_CELL_STYLE =
             "-fx-background-color: black;" +
-            "-fx-border-color: #555;" +
-            "-fx-border-width: 0.5;";
+                    "-fx-border-color: #555;" +
+                    "-fx-border-width: 0.5;";
 
     private final Stage stage;
     private final Runnable onBack;
@@ -166,7 +182,7 @@ public class Game {
         gameGrid.setAlignment(Pos.CENTER);
 
         // Calculating cell size so larger fields still fit inside the window
-        double cellSize = Math.min(450.0 / fieldHeight, 600.0 / fieldWidth);
+        cellSize = Math.min(450.0 / fieldHeight, 600.0 / fieldWidth);
 
         // Preventing cells from becoming unnecessarily large
         cellSize = Math.min(cellSize, 30);
@@ -186,6 +202,25 @@ public class Game {
                 );
             }
         }
+        // Creating separate layer for smoothly moving falling piece
+        pieceOverlay = new Pane();
+
+        double boardWidth = fieldWidth * cellSize;
+        double boardHeight = fieldHeight * cellSize;
+
+        pieceOverlay.setMinSize(boardWidth, boardHeight);
+        pieceOverlay.setPrefSize(boardWidth, boardHeight);
+        pieceOverlay.setMaxSize(boardWidth, boardHeight);
+        pieceOverlay.setMouseTransparent(true);
+        pieceOverlay.getChildren().add(fallingPieceGroup);
+
+        // Placing falling piece layer directly over Tetris grid
+        StackPane gameBoard = new StackPane(gameGrid, pieceOverlay);
+        gameBoard.setAlignment(Pos.CENTER);
+        gameBoard.setMinSize(boardWidth, boardHeight);
+        gameBoard.setPrefSize(boardWidth, boardHeight);
+        gameBoard.setMaxSize(boardWidth, boardHeight);
+
         // Creating status label for displaying Game Over later
         statusLabel = new Label("");
         statusLabel.setStyle("-fx-text-fill: yellow; -fx-font-size: 16px;");
@@ -204,6 +239,7 @@ public class Game {
         // Returning user back to Main Menu and stopping game timer
         backButton.setOnAction(ignored -> {
             fallTimer.stop();
+            stopPieceAnimations();
             onBack.run();
         });
 
@@ -223,7 +259,7 @@ public class Game {
         gameLayout.setAlignment(Pos.CENTER);
         gameLayout.setPadding(new Insets(20));
         gameLayout.setStyle("-fx-background-color: black;");
-        gameLayout.getChildren().addAll(titleLabel, gameGrid, statusLabel, bottomLayout);
+        gameLayout.getChildren().addAll(titleLabel, gameBoard, statusLabel, bottomLayout);
 
         // Creating Scene for Game Screen
         Scene gameScene = new Scene(gameLayout, 800, 600);
@@ -260,8 +296,8 @@ public class Game {
                 // Accelerating piece downwards
                 case DOWN:
                 case S:
-                    movePieceDown();
                     fallTimer.setRate(5);
+                    movePieceDown();
                     event.consume();
                     break;
             }
@@ -318,9 +354,7 @@ public class Game {
     private void removeRow(int completedRow) {
         // Moving every row above the completed row down one position
         for (int row = completedRow; row > 0; row--) {
-            for (int column = 0; column < fieldWidth; column++) {
-                lockedBlocks[row][column] = lockedBlocks[row - 1][column];
-            }
+            if (fieldWidth >= 0) System.arraycopy(lockedBlocks[row - 1], 0, lockedBlocks[row], 0, fieldWidth);
         }
         // Clearing the new top row
         for (int column = 0; column < fieldWidth; column++) {
@@ -342,9 +376,18 @@ public class Game {
         // Ending game if new piece cannot fit onto grid
         if (!canPlacePiece(anchorRow, anchorColumn)) {
             fallTimer.stop();
+            stopPieceAnimations();
+            fallingPieceGroup.getChildren().clear();
             statusLabel.setText("Game Over");
             return;
         }
+
+        // Resetting animations and drawing new falling piece at spawn position
+        stopPieceAnimations();
+        updateFallingPieceShape();
+        fallingPieceGroup.setTranslateX(anchorColumn * cellSize);
+        fallingPieceGroup.setTranslateY(anchorRow * cellSize);
+
         renderGrid();
     }
 
@@ -354,7 +397,7 @@ public class Game {
         // Moving piece if next position is available
         if (canPlacePiece(nextRow, anchorColumn)) {
             anchorRow = nextRow;
-            renderGrid();
+            animateVerticalMovement();
         } else {
             // Locking piece into grid once it can no longer move down
             lockPiece();
@@ -374,7 +417,7 @@ public class Game {
         // Moving piece if new horizontal position is available
         if (canPlacePiece(anchorRow, nextColumn)) {
             anchorColumn = nextColumn;
-            renderGrid();
+            animateHorizontalMovement();
         }
     }
 
@@ -399,12 +442,13 @@ public class Game {
         if (canPlacePiece(anchorRow, anchorColumn, rotatedShape)) {
             currentPieceShape = rotatedShape;
 
-            renderGrid();
+            // Rebuilding falling piece using its new rotated shape
+            updateFallingPieceShape();
         }
     }
 
     // Checking if piece can exist at specified anchor position
-// Checking if current piece can exist at specified anchor position
+    // Checking if current piece can exist at specified anchor position
     private boolean canPlacePiece(
             int testAnchorRow,
             int testAnchorColumn) {
@@ -432,6 +476,9 @@ public class Game {
 
     // Converting falling piece into locked blocks
     private void lockPiece() {
+        // Stopping visual movement before converting piece into locked blocks
+        stopPieceAnimations();
+
         for (int[] block : currentPieceShape) {
             int row = anchorRow + block[0];
             int column = anchorColumn + block[1];
@@ -439,6 +486,10 @@ public class Game {
             // Saving Piece Type so placed block retains its colour
             lockedBlocks[row][column] = currentPieceType;
         }
+
+        // Removing separate falling visual because piece is now part of grid
+        fallingPieceGroup.getChildren().clear();
+
         renderGrid();
     }
 
@@ -476,21 +527,76 @@ public class Game {
             }
         }
 
-        // Drawing currently falling piece using anchor position
+    }
+
+    // Creating visual blocks for currently falling Tetris piece
+    private void updateFallingPieceShape() {
+        fallingPieceGroup.getChildren().clear();
+
         for (int[] block : currentPieceShape) {
-            int row = anchorRow + block[0];
-            int column = anchorColumn + block[1];
-            if (row >= 0 && row < fieldHeight && column >= 0 && column < fieldWidth) {
-                gridCells[row][column].setStyle(createPieceStyle(currentPieceType.colour));
-            }
+            Rectangle rectangle = new Rectangle(cellSize, cellSize);
+
+            // Positioning block relative to anchor block
+            rectangle.setX(block[1] * cellSize);
+            rectangle.setY(block[0] * cellSize);
+
+            // Applying piece colour and border to individual block
+            rectangle.setStyle("-fx-fill: " + currentPieceType.colour + ";" +
+                "-fx-stroke: black;  -fx-stroke-width: 2;");
+
+            fallingPieceGroup.getChildren().add(rectangle);
+        }
+    }
+
+    // Smoothly moving falling piece left or right
+    private void animateHorizontalMovement() {
+        if (horizontalAnimation != null) {
+            horizontalAnimation.stop();
+        }
+
+        horizontalAnimation = new TranslateTransition(
+                Duration.millis(80),
+                fallingPieceGroup
+        );
+
+        horizontalAnimation.setToX(anchorColumn * cellSize);
+        horizontalAnimation.setInterpolator(Interpolator.EASE_BOTH);
+        horizontalAnimation.play();
+    }
+
+    // Smoothly moving falling piece down towards its next grid position
+    private void animateVerticalMovement() {
+        if (verticalAnimation != null) {
+            verticalAnimation.stop();
+        }
+
+        double animationTime = 480;
+
+        // Shortening animation while Down or S is accelerating the piece
+        if (fallTimer.getRate() > 1) {animationTime = 90;}
+
+        verticalAnimation = new TranslateTransition(Duration.millis(animationTime), fallingPieceGroup);
+
+        verticalAnimation.setToY(anchorRow * cellSize);
+        verticalAnimation.setInterpolator(Interpolator.LINEAR);
+        verticalAnimation.play();
+    }
+
+    // Stopping current movement animations before locking or replacing piece
+    private void stopPieceAnimations() {
+        if (horizontalAnimation != null) {
+            horizontalAnimation.stop();
+        }
+
+        if (verticalAnimation != null) {
+            verticalAnimation.stop();
         }
     }
 
     // Creating coloured block with border so individual cells remain visible
     private static String createPieceStyle(String colour) {
         return "-fx-background-color: " + colour + ";" +
-            "-fx-border-color: black;" +
-            "-fx-border-width: 2;";
+                "-fx-border-color: black; -fx-border-width: 2;";
     }
 
     // Creating separate copy of piece shape so it can be rotated

@@ -24,16 +24,11 @@ import java.util.regex.Pattern;
 import javafx.beans.binding.Bindings;
 
 public class Settings {
-
     // Defining location of settings JSON file
-    private static final Path SETTINGS_FILE =
-            Paths.get("src", "main", "resources", "settings.json");
-
+    private static final Path SETTINGS_FILE = Paths.get("src", "main", "resources", "settings.json");
     public static void show(Stage stage, Runnable onBack) {
-
         // Reading current settings from JSON file
         String json = readSettingsFile();
-
         int fieldLength = getInt(json, "fieldLength", 20);
         int fieldWidth = getInt(json, "fieldWidth", 10);
         int level = getInt(json, "level", 1);
@@ -45,11 +40,7 @@ public class Settings {
 
         // Creating title for Settings Screen
         Label titleLabel = new Label("Settings");
-        titleLabel.setStyle(
-                "-fx-font-size: 30px;" +
-                        "-fx-font-weight: bold;" +
-                        "-fx-text-fill: yellow;"
-        );
+        titleLabel.setStyle("-fx-font-size: 30px; -fx-font-weight: bold; -fx-text-fill: yellow;");
 
         // Creating sliders with constraints for each numerical setting
         Slider widthSlider = createSlider(5, 15, fieldWidth);
@@ -62,17 +53,9 @@ public class Settings {
         Label levelValue = createLabel(String.valueOf(level));
 
         // Updating displayed values when sliders are changed
-        widthValue.textProperty().bind(
-                Bindings.format("%.0f", widthSlider.valueProperty())
-        );
-
-        lengthValue.textProperty().bind(
-                Bindings.format("%.0f", lengthSlider.valueProperty())
-        );
-
-        levelValue.textProperty().bind(
-                Bindings.format("%.0f", levelSlider.valueProperty())
-        );
+        widthValue.textProperty().bind(Bindings.format("%.0f", widthSlider.valueProperty()));
+        lengthValue.textProperty().bind(Bindings.format("%.0f", lengthSlider.valueProperty()));
+        levelValue.textProperty().bind(Bindings.format("%.0f", levelSlider.valueProperty()));
 
         // Creating CheckBox Objects for On/Off settings
         CheckBox musicCheckBox = createCheckBox(music);
@@ -133,11 +116,7 @@ public class Settings {
         valueColumn.setPrefWidth(70);
         valueColumn.setHalignment(HPos.LEFT);
 
-        settingsGrid.getColumnConstraints().addAll(
-                labelColumn,
-                controlColumn,
-                valueColumn
-        );
+        settingsGrid.getColumnConstraints().addAll(labelColumn, controlColumn, valueColumn);
 
         // Adding Field Width controls to first row
         settingsGrid.add(createLabel("Field Width (No. of cells):"), 0, 0);
@@ -179,10 +158,7 @@ public class Settings {
         Button backButton = new Button("Back");
 
         // Defining same button style used by Main Menu
-        String menuButtonStyle =
-                "-fx-font-size: 20px;" +
-                        "-fx-background-color: #555;" +
-                        "-fx-text-fill: yellow;";
+        String menuButtonStyle = "-fx-font-size: 20px; -fx-background-color: #555; -fx-text-fill: yellow;";
 
         saveButton.setStyle(menuButtonStyle);
         backButton.setStyle(menuButtonStyle);
@@ -195,15 +171,9 @@ public class Settings {
 
         // Updating JSON file with currently selected settings
         saveButton.setOnAction(ignored -> {
-
-            int newFieldWidth =
-                    (int) Math.round(widthSlider.getValue());
-
-            int newFieldLength =
-                    (int) Math.round(lengthSlider.getValue());
-
-            int newLevel =
-                    (int) Math.round(levelSlider.getValue());
+            int newFieldWidth = (int) Math.round(widthSlider.getValue());
+            int newFieldLength = (int) Math.round(lengthSlider.getValue());
+            int newLevel = (int) Math.round(levelSlider.getValue());
 
             saveSettings(
                     newFieldLength,
@@ -214,7 +184,6 @@ public class Settings {
                     aiPlayerCheckBox.isSelected(),
                     extendedModeCheckBox.isSelected()
             );
-
             saveMessage.setText("Settings Saved");
         });
 
@@ -232,30 +201,16 @@ public class Settings {
         settingsLayout.setPadding(new Insets(20));
         settingsLayout.setStyle("-fx-background-color: black;");
 
-        settingsLayout.getChildren().addAll(
-                titleLabel,
-                settingsGrid,
-                buttonLayout,
-                saveMessage
-        );
+        settingsLayout.getChildren().addAll(titleLabel, settingsGrid, buttonLayout, saveMessage);
 
         // Creating Scene and rendering it onto the existing Stage
         Scene settingsScene = new Scene(settingsLayout, 800, 600);
-
         stage.setScene(settingsScene);
     }
 
     // Creating slider with integer values and visible constraints
-    private static Slider createSlider(
-            int minimum,
-            int maximum,
-            int startingValue) {
-
-        Slider slider = new Slider(
-                minimum,
-                maximum,
-                startingValue
-        );
+    private static Slider createSlider(int minimum, int maximum, int startingValue) {
+        Slider slider = new Slider(minimum, maximum, startingValue);
 
         slider.setShowTickMarks(true);
         slider.setShowTickLabels(true);
@@ -273,20 +228,13 @@ public class Settings {
 
     // Creating labels with same text colour used by Main Menu
     private static Label createLabel(String text) {
-
         Label label = new Label(text);
-
-        label.setStyle(
-                "-fx-text-fill: yellow;" +
-                        "-fx-font-size: 14px;"
-        );
-
+        label.setStyle("-fx-text-fill: yellow; -fx-font-size: 14px;");
         return label;
     }
 
     // Creating CheckBox with initial value from JSON file
     private static CheckBox createCheckBox(boolean selected) {
-
         CheckBox checkBox = new CheckBox();
         checkBox.setSelected(selected);
 
@@ -295,7 +243,6 @@ public class Settings {
 
     // Reading contents of settings JSON file
     private static String readSettingsFile() {
-
         try {
             return Files.readString(SETTINGS_FILE);
 
@@ -330,47 +277,29 @@ public class Settings {
             Files.writeString(SETTINGS_FILE, json);
 
         } catch (IOException e) {
-            System.err.println(
-                    "Could not save settings.json: " + e.getMessage()
-            );
+            System.err.println("Could not save settings.json: " + e.getMessage());
         }
     }
 
     // Finding integer setting from JSON and using default if it cannot be found
-    private static int getInt(
-            String json,
-            String key,
-            int defaultValue) {
-
-        Pattern pattern = Pattern.compile(
-                "\"" + key + "\"\\s*:\\s*(\\d+)"
-        );
-
+    private static int getInt(String json, String key, int defaultValue) {
+        Pattern pattern = Pattern.compile("\"" + key + "\"\\s*:\\s*(\\d+)");
         Matcher matcher = pattern.matcher(json);
 
         if (matcher.find()) {
             return Integer.parseInt(matcher.group(1));
         }
-
         return defaultValue;
     }
 
     // Finding boolean setting from JSON and using default if it cannot be found
-    private static boolean getBoolean(
-            String json,
-            String key,
-            boolean defaultValue) {
-
-        Pattern pattern = Pattern.compile(
-                "\"" + key + "\"\\s*:\\s*(true|false)"
-        );
-
+    private static boolean getBoolean(String json, String key, boolean defaultValue) {
+        Pattern pattern = Pattern.compile("\"" + key + "\"\\s*:\\s*(true|false)");
         Matcher matcher = pattern.matcher(json);
 
         if (matcher.find()) {
             return Boolean.parseBoolean(matcher.group(1));
         }
-
         return defaultValue;
     }
 }

@@ -8,9 +8,12 @@ import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
+import javafx.scene.layout.HBox;
 import javafx.scene.input.KeyEvent;
 import javafx.stage.Stage;
 import javafx.util.Duration;
@@ -27,6 +30,11 @@ public class Game {
     // Defining location of settings JSON file
     private static final Path SETTINGS_FILE =
             Paths.get("src", "main", "resources", "settings.json");
+
+
+    // Keeping track of current player score
+    private int score = 0;
+    private Label scoreLabel;
 
     // Defining original Tetris piece using positions relative to the anchor block
     // Defining all Tetris piece shapes and their colours
@@ -180,8 +188,13 @@ public class Game {
         }
         // Creating status label for displaying Game Over later
         statusLabel = new Label("");
-        statusLabel.setStyle("-fx-text-fill: yellow; -fx-font-size: 16px;"
+        statusLabel.setStyle("-fx-text-fill: yellow; -fx-font-size: 16px;");
+
+        // Creating score label for displaying current player score
+        scoreLabel = new Label("Score: 0");
+        scoreLabel.setStyle("-fx-text-fill: yellow; -fx-font-size: 16px; -fx-font-weight: bold;"
         );
+
         // Creating Back Button for Game Screen
         Button backButton = new Button("Back");
         String menuButtonStyle = "-fx-font-size: 20px; -fx-background-color: #555; -fx-text-fill: yellow;";
@@ -193,13 +206,24 @@ public class Game {
             fallTimer.stop();
             onBack.run();
         });
+
+        // Creating empty space between Score and Back Button
+        Region bottomSpacer = new Region();
+        HBox.setHgrow(bottomSpacer, Priority.ALWAYS);
+
+        // Creating bottom section of Game Screen
+        HBox bottomLayout = new HBox(20, scoreLabel, bottomSpacer, backButton);
+        bottomLayout.setAlignment(Pos.CENTER);
+        bottomLayout.setPadding(new Insets(0, 20, 0, 20));
+        bottomLayout.setMaxWidth(Double.MAX_VALUE);
+
         // VBox holds the Game Screen vertically
         VBox gameLayout = new VBox(15);
 
         gameLayout.setAlignment(Pos.CENTER);
         gameLayout.setPadding(new Insets(20));
         gameLayout.setStyle("-fx-background-color: black;");
-        gameLayout.getChildren().addAll(titleLabel, gameGrid, statusLabel, backButton);
+        gameLayout.getChildren().addAll(titleLabel, gameGrid, statusLabel, bottomLayout);
 
         // Creating Scene for Game Screen
         Scene gameScene = new Scene(gameLayout, 800, 600);
@@ -266,15 +290,18 @@ public class Game {
     }
 
     // Checking entire grid for completed rows
-    private void clearFullRows() {
+    private int clearFullRows() {
+        int linesCleared = 0;
         // Starting from bottom because rows above will move down
         for (int row = fieldHeight - 1; row >= 0; row--) {
             if (isRowFull(row)) {
                 removeRow(row);
+                linesCleared++;
                 // Checking same row again because another row has moved into it
                 row++;
             }
         }
+        return linesCleared;
     }
 
     // Checking if every grid space in a row contains a block
@@ -331,8 +358,11 @@ public class Game {
         } else {
             // Locking piece into grid once it can no longer move down
             lockPiece();
-            // Checking for and removing any completed rows
-            clearFullRows();
+
+            // Checking for completed rows and adding score
+            int linesCleared = clearFullRows();
+            addScore(linesCleared);
+
             // Spawning another random piece
             spawnPiece();
         }
@@ -410,6 +440,26 @@ public class Game {
             lockedBlocks[row][column] = currentPieceType;
         }
         renderGrid();
+    }
+
+    // Adding score depending on number of lines cleared at once
+    private void addScore(int linesCleared) {
+        switch (linesCleared) {
+            case 1:
+                score += 100;
+                break;
+            case 2:
+                score += 300;
+                break;
+            case 3:
+                score += 500;
+                break;
+            case 4:
+                score += 800;
+                break;
+        }
+        // Updating displayed score
+        scoreLabel.setText("Score: " + score);
     }
 
     // Updating appearance of entire Tetris grid

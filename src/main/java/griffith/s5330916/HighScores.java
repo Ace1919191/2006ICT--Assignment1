@@ -10,7 +10,6 @@ import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -21,7 +20,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class HighScores {
-
     // Defining location of scores JSON file
     private static final Path SCORES_FILE =
             Paths.get("src", "main", "resources", "scores.json");
@@ -33,7 +31,6 @@ public class HighScores {
         // Creating title for High Scores Screen
         Label titleLabel = new Label("High Scores");
         titleLabel.setStyle("-fx-font-size: 30px; -fx-font-weight: bold; -fx-text-fill: yellow;");
-
 
         // GridPane allows score information to remain aligned into columns
         GridPane scoresGrid = new GridPane();
@@ -76,26 +73,11 @@ public class HighScores {
         int scoresToDisplay = Math.min(10, scores.size());
 
         for (int i = 0; i < scoresToDisplay; i++) {
-
             PlayerScore playerScore = scores.get(i);
 
-            scoresGrid.add(
-                    createLabel(String.valueOf(i + 1)),
-                    0,
-                    i + 1
-            );
-
-            scoresGrid.add(
-                    createLabel(playerScore.player()),
-                    1,
-                    i + 1
-            );
-
-            scoresGrid.add(
-                    createLabel(String.valueOf(playerScore.score())),
-                    2,
-                    i + 1
-            );
+            scoresGrid.add(createLabel(String.valueOf(i + 1)), 0, i + 1);
+            scoresGrid.add(createLabel(playerScore.player()), 1, i + 1);
+            scoresGrid.add(createLabel(String.valueOf(playerScore.score())), 2, i + 1);
         }
 
         // Displaying message if scores JSON file contains no scores
@@ -123,11 +105,8 @@ public class HighScores {
         scoresLayout.setPadding(new Insets(20));
         scoresLayout.setStyle("-fx-background-color: black;");
 
-        scoresLayout.getChildren().addAll(
-                titleLabel,
-                scoresGrid,
-                backButton
-        );
+        scoresLayout.getChildren().addAll(titleLabel, scoresGrid, backButton);
+
         // Creating Scene and rendering it onto the existing Stage
         Scene scoresScene = new Scene(scoresLayout, 800, 600);
         stage.setScene(scoresScene);
@@ -148,9 +127,7 @@ public class HighScores {
             String json = Files.readString(SCORES_FILE);
 
             // Finding three letter player identifiers and their score
-            Pattern pattern = Pattern.compile(
-                    "\"([A-Za-z]{3})\"\\s*:\\s*(\\d+)"
-            );
+            Pattern pattern = Pattern.compile("\"([A-Za-z]{3})\"\\s*:\\s*(\\d+)");
 
             Matcher matcher = pattern.matcher(json);
 
@@ -160,24 +137,16 @@ public class HighScores {
                 scores.add(new PlayerScore(player, score));
             }
 
-        } catch (IOException e) {
-            System.err.println("Could not read scores.json: " + e.getMessage());
-        }
+        } catch (IOException e) {System.err.println("Could not read scores.json: " + e.getMessage());}
 
         // Sorting scores from highest to lowest
         scores.sort(
                 (firstScore, secondScore) ->
-                        Integer.compare(
-                                secondScore.score(),
-                                firstScore.score()
-                        )
+                        Integer.compare(secondScore.score(), firstScore.score())
         );
         return scores;
     }
 
     // Storing player identifier and score together while displaying scores
-    private record PlayerScore(
-            String player,
-            int score) {
-    }
+    private record PlayerScore(String player, int score) { }
 }

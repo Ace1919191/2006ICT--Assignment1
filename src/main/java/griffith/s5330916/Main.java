@@ -23,7 +23,6 @@ public class Main extends Application {
     //Calling method decorator @Override tells the class not to inherit the start method from Application
     @Override
     public void start(Stage initialStage) {
-
         // Create splash screen Stage and parse to splash screen function
         Stage splashStage = new Stage(StageStyle.UNDECORATED);
         String xVariable = "Idk yet";
@@ -31,7 +30,6 @@ public class Main extends Application {
     }
 
     private void showSplashScreen(Stage stage, Runnable onFinished) {
-
         // Get JPG from resources
         URL imageURL = getClass().getResource("/assets/splash_screen.jpg");
 
@@ -51,11 +49,7 @@ public class Main extends Application {
 
         // Create skip label
         Label skipLabel = new Label("Press 'ESC' to skip.");
-        skipLabel.setStyle(
-                "-fx-text-fill: yellow;" +
-                        "-fx-font-size: 14px;" +
-                        "-fx-font-weight: bold;"
-        );
+        skipLabel.setStyle("-fx-text-fill: yellow; -fx-font-size: 14px; -fx-font-weight: bold;");
         skipLabel.setPadding(new Insets(0, 10, 20, 0));
 
         // Create splash screen layout
@@ -120,8 +114,8 @@ public class Main extends Application {
         // Defining function calls on button press
         playButton.setOnAction(ignored -> Game.show(stage, () -> showMainWindow(stage)));
         scoresButton.setOnAction(ignored -> HighScores.show(stage, () -> showMainWindow(stage)));
-        settingsButton.setOnAction(event -> Settings.show(stage, () -> showMainWindow(stage)));
-        exitButton.setOnAction(event -> {stage.close(); System.exit(0);});
+        settingsButton.setOnAction(ignored -> Settings.show(stage, () -> showMainWindow(stage)));
+        exitButton.setOnAction(ignored -> {stage.close(); System.exit(0);});
 
         menuLayout.getChildren().addAll(playButton, scoresButton, settingsButton, exitButton);
 

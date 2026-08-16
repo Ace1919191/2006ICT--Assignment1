@@ -43,6 +43,19 @@ public class Game {
 
     // Defining original Tetris piece using positions relative to the anchor block
     // Defining all Tetris piece shapes and their colours
+
+    /*
+    The way that storing a tetris piece's block data works is as follows:
+    Within the piece data's array each value set represents a "block" of the piece,
+    the numbers represents the offset of that block from the "anchor" piece,
+    so for the I piece it translates to:
+        1. One block to the left            {0, -1}
+        2. *Anchor Block                    {0, 0}
+        3. One block to the right           {0, 1}
+        4.One block 2 spaces to the right   {0, 2}
+        [][*][][]
+     */
+
     private enum PieceType {
         I(new int[][]{
                 {0, -1},
@@ -128,8 +141,8 @@ public class Game {
     // Defining styles used by cells in the Tetris grid
     private static final String EMPTY_CELL_STYLE =
             "-fx-background-color: black;" +
-                    "-fx-border-color: #555;" +
-                    "-fx-border-width: 0.5;";
+            "-fx-border-color: #555;" +
+            "-fx-border-width: 0.5;";
 
     private final Stage stage;
     private final Runnable onBack;

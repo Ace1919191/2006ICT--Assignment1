@@ -47,6 +47,11 @@ public class Main extends Application {
         // Keep image at its original size
         imageView.setPreserveRatio(true);
 
+        // Create information label
+        Label infoLabel = new Label("2006ICT PG3\nDeveloped by Matthew Snow-Bollaan s5330916");
+        infoLabel.setStyle("-fx-text-fill: yellow; -fx-font-size: 14px; -fx-font-weight: bold;");
+        infoLabel.setPadding(new Insets(20, 0, 0, 10));
+
         // Create skip label
         Label skipLabel = new Label("Press 'ESC' to skip.");
         skipLabel.setStyle("-fx-text-fill: yellow; -fx-font-size: 14px; -fx-font-weight: bold;");
@@ -54,30 +59,22 @@ public class Main extends Application {
 
         // Create splash screen layout
         StackPane splashLayout = new StackPane();
-        splashLayout.getChildren().addAll(imageView, skipLabel);
+        splashLayout.getChildren().addAll(imageView, infoLabel, skipLabel);
 
         StackPane.setAlignment(skipLabel, Pos.BOTTOM_RIGHT);
+        StackPane.setAlignment(infoLabel, Pos.TOP_LEFT);
 
         // Create scene matching image dimensions
-        Scene splashScene = new Scene(
-                splashLayout,
-                image.getWidth(),
-                image.getHeight()
-        );
+        Scene splashScene = new Scene(splashLayout, image.getWidth(), image.getHeight());
 
         stage.setScene(splashScene);
 
         // Transition to main application
-        Runnable transitionToAction = () -> {
-            stage.close();
-            onFinished.run();
-        };
+        Runnable transitionToAction = () -> {stage.close(); onFinished.run();};
 
         // Allow ESC to skip splash screen
         splashScene.setOnKeyPressed(event -> {
-            if (event.getCode() == KeyCode.ESCAPE) {
-                transitionToAction.run();
-            }
+            if (event.getCode() == KeyCode.ESCAPE) {transitionToAction.run();}
         });
 
         // Show splash screen for 4 seconds

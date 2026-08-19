@@ -32,14 +32,13 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Game {
-    // Defining location of settings JSON file
     private static final Path SETTINGS_FILE =
             Paths.get("src", "main", "resources", "settings.json");
 
-
-    // Keeping track of current player score
     private int score = 0;
     private Label scoreLabel;
+
+    private boolean paused = false;
 
     // Defining original Tetris piece using positions relative to the anchor block
     // Defining all Tetris piece shapes and their colours
@@ -117,17 +116,13 @@ public class Game {
         }
     }
 
-    // Random Object is used to select the next Tetris piece
     private final Random random = new Random();
 
-    // Defining current Tetris piece
     private PieceType currentPieceType;
     private int[][] currentPieceShape;
 
-    // Storing Piece Type allows placed blocks to retain their colour
     private PieceType[][] lockedBlocks;
 
-    // Cell size is stored so falling piece can be positioned smoothly
     private double cellSize;
 
     // Separate visual layer for currently falling piece
@@ -305,12 +300,17 @@ public class Game {
                     event.consume();
                     break;
 
-
                 // Accelerating piece downwards
                 case DOWN:
                 case S:
                     fallTimer.setRate(5);
                     movePieceDown();
+                    event.consume();
+                    break;
+
+                // Pausing or resuming game
+                case P:
+                    togglePause();
                     event.consume();
                     break;
             }
@@ -336,6 +336,19 @@ public class Game {
 
         // Starting automatic falling
         fallTimer.play();
+    }
+
+    // Pausing or resuming the game
+    private void togglePause() {
+        paused = !paused;
+        if (paused) {
+            fallTimer.pause();
+            statusLabel.setText("Paused");
+
+        } else {
+            fallTimer.play();
+            statusLabel.setText("");
+        }
     }
 
     // Checking entire grid for completed rows
@@ -406,6 +419,11 @@ public class Game {
 
     // Moving current piece down one grid space
     private void movePieceDown() {
+        // Preventing movement while game is paused
+        if (paused) {
+            return;
+        }
+
         int nextRow = anchorRow + 1;
         // Moving piece if next position is available
         if (canPlacePiece(nextRow, anchorColumn)) {
@@ -426,6 +444,10 @@ public class Game {
 
     // Moving current piece left or right
     private void movePieceHorizontal(int direction) {
+        // Preventing movement while game is paused
+        if (paused) {
+            return;
+        }
         int nextColumn = anchorColumn + direction;
         // Moving piece if new horizontal position is available
         if (canPlacePiece(anchorRow, nextColumn)) {
@@ -436,6 +458,11 @@ public class Game {
 
     // Rotating current piece 90 degrees clockwise around anchor block
     private void rotatePiece() {
+        // Preventing movement while game is paused
+        if (paused) {
+            return;
+        }
+
         // Square piece does not need to be rotated
         if (!currentPieceType.rotatable) {
             return;

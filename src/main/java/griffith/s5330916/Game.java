@@ -40,6 +40,9 @@ public class Game {
 
     private boolean paused = false;
 
+    // Keeping track of whether player is currently accelerating the piece
+    private boolean softDropActive = false;
+
     // Defining original Tetris piece using positions relative to the anchor block
     // Defining all Tetris piece shapes and their colours
 
@@ -127,7 +130,7 @@ public class Game {
 
     // Separate visual layer for currently falling piece
     private Pane pieceOverlay;
-    private final Group fallingPieceGroup = new Group();
+    private Group fallingPieceGroup = new Group();
 
     // Animations used when moving the falling piece
     private TranslateTransition horizontalAnimation;
@@ -303,8 +306,13 @@ public class Game {
                 // Accelerating piece downwards
                 case DOWN:
                 case S:
-                    fallTimer.setRate(5);
-                    movePieceDown();
+                    // Preventing auto-repeat on key hold
+                    if (!softDropActive) {
+                        softDropActive = true;
+                        fallTimer.setRate(5);
+                        movePieceDown();
+                    }
+
                     event.consume();
                     break;
 
@@ -390,6 +398,16 @@ public class Game {
 
     // Spawning new piece at top centre of Tetris grid
     private void spawnPiece() {
+        stopPieceAnimations();
+
+        // Removing visual object belonging to previous piece
+        pieceOverlay.getChildren().remove(fallingPieceGroup);
+
+        // Creating completely new visual object for spawned piece
+        fallingPieceGroup = new Group();
+
+        pieceOverlay.getChildren().add(fallingPieceGroup);
+
         anchorRow = 1;
         anchorColumn = fieldWidth / 2;
 
@@ -423,7 +441,6 @@ public class Game {
         if (paused) {
             return;
         }
-
         int nextRow = anchorRow + 1;
         // Moving piece if next position is available
         if (canPlacePiece(nextRow, anchorColumn)) {
@@ -626,10 +643,14 @@ public class Game {
     private void stopPieceAnimations() {
         if (horizontalAnimation != null) {
             horizontalAnimation.stop();
+            horizontalAnimation.setNode(null);
+            horizontalAnimation = null;
         }
 
         if (verticalAnimation != null) {
             verticalAnimation.stop();
+            verticalAnimation.setNode(null);
+            verticalAnimation = null;
         }
     }
 

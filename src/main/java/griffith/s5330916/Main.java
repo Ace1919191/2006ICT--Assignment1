@@ -49,7 +49,7 @@ public class Main extends Application {
 
         // Create information label
         Label infoLabel = new Label("2006ICT PG3\nDeveloped by Matthew Snow-Bollaan s5330916");
-        infoLabel.setStyle("-fx-text-fill: yellow; -fx-font-size: 14px; -fx-font-weight: bold;");
+        infoLabel.setStyle("-fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold;");
         infoLabel.setPadding(new Insets(20, 0, 0, 10));
 
         // Create skip label

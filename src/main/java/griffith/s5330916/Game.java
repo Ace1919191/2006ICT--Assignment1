@@ -330,6 +330,7 @@ public class Game {
                 case DOWN:
                 case S:
                     // Returning falling speed back to normal
+                    softDropActive = false;
                     fallTimer.setRate(1);
                     event.consume();
                     break;

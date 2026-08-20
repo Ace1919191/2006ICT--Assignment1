@@ -13,6 +13,8 @@ import javafx.scene.shape.Rectangle;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.GridPane;
@@ -247,11 +249,41 @@ public class Game {
 
         backButton.setStyle(menuButtonStyle);
 
-        // Returning user back to Main Menu and stopping game timer
+        // Pausing game and asking user to confirm returning to Main Menu
         backButton.setOnAction(ignored -> {
-            fallTimer.stop();
-            stopPieceAnimations();
-            onBack.run();
+            // Remembering whether game was already paused before Back was pressed
+            boolean wasPaused = paused;
+
+            // Pausing game while confirmation popup is displayed
+            paused = true;
+            fallTimer.pause();
+            pausePieceAnimations();
+            statusLabel.setText("Paused");
+
+            // Creating confirmation popup
+            Alert confirmation = new Alert(
+                    Alert.AlertType.CONFIRMATION,
+                    "Are you sure you want to return to the Main Menu?",
+                    ButtonType.YES,
+                    ButtonType.NO
+            );
+            confirmation.setTitle("Return to Main Menu");
+            confirmation.setHeaderText("Exit Current Game?");
+            confirmation.initOwner(stage);
+            ButtonType result = confirmation.showAndWait().orElse(ButtonType.NO);
+            if (result == ButtonType.YES) {
+                // Stopping game completely before returning to Main Menu
+                fallTimer.stop();
+                stopPieceAnimations();
+                softDropActive = false;
+                onBack.run();
+            } else if (!wasPaused) {
+                // Resuming game if it was running before Back was pressed
+                paused = false;
+                statusLabel.setText("");
+                resumePieceAnimations();
+                fallTimer.play();
+            }
         });
 
         // Creating empty space between Score and Back Button
@@ -638,6 +670,18 @@ public class Game {
         verticalAnimation.setToY(anchorRow * cellSize);
         verticalAnimation.setInterpolator(Interpolator.LINEAR);
         verticalAnimation.play();
+    }
+
+    // Pausing visual movement of current falling piece
+    private void pausePieceAnimations() {
+        if (horizontalAnimation != null) {horizontalAnimation.pause();}
+        if (verticalAnimation != null) {verticalAnimation.pause();}
+    }
+
+    // Resuming visual movement of current falling piece
+    private void resumePieceAnimations() {
+        if (horizontalAnimation != null) {horizontalAnimation.play();}
+        if (verticalAnimation != null) {verticalAnimation.play();}
     }
 
     // Stopping current movement animations before locking or replacing piece

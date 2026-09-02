@@ -45,6 +45,8 @@ public class Game {
     // Keeping track of whether player is currently accelerating the piece
     private boolean softDropActive = false;
 
+    // test
+
     // Defining original Tetris piece using positions relative to the anchor block
     // Defining all Tetris piece shapes and their colours
 

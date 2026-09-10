@@ -32,6 +32,11 @@ public class Game {
     // Preventing the win/tie message from being overwritten once decided
     private boolean roundEnded = false;
 
+    // Tracking which boards have topped out so the match can continue for
+    // whichever player is still alive in Two Player Mode
+    private boolean playerOneEnded = false;
+    private boolean playerTwoEnded = false;
+
     private Label overallStatusLabel;
 
     public Game(Stage stage, Runnable onBack) {
@@ -63,13 +68,14 @@ public class Game {
         // Creating player one's board. In single player mode this board accepts
         // both WASD and Arrow Key controls so either control scheme works.
         String playerOneLabel = twoPlayerMode ? "Player 1 (WASD)" : "Player 1";
-        playerOne = new PlayerBoard(playerOneLabel, fieldHeight, fieldWidth, this::handleGameOver, pieceSequence);
+        playerOne = new PlayerBoard(playerOneLabel, fieldHeight, fieldWidth, () -> handlePlayerGameOver(true),
+                pieceSequence);
 
         // Only creating a second board when Two Player Mode is enabled
         HBox boardsLayout;
         if (twoPlayerMode) {
-            playerTwo = new PlayerBoard("Player 2 (Arrow Keys)", fieldHeight, fieldWidth, this::handleGameOver,
-                    pieceSequence);
+            playerTwo = new PlayerBoard("Player 2 (Arrow Keys)", fieldHeight, fieldWidth,
+                    () -> handlePlayerGameOver(false), pieceSequence);
             boardsLayout = new HBox(60, playerOne.getView(), playerTwo.getView());
         } else {
             playerTwo = null;
@@ -88,6 +94,14 @@ public class Game {
 
         // Pausing the board(s) and asking user to confirm returning to Main Menu
         backButton.setOnAction(ignored -> {
+            // If the match has already been decided, just leave immediately
+            // instead of flashing "Paused" over the result
+            if (roundEnded) {
+                stopAll();
+                onBack.run();
+                return;
+            }
+
             // Remembering whether the game was already paused before Back was pressed
             boolean wasPaused = paused;
 
@@ -247,30 +261,54 @@ public class Game {
         }
     }
 
-    // Called when a board tops out; ends the match
-    private void handleGameOver() {
+    // Called when a specific board tops out. In Single Player Mode this ends
+    // the match immediately. In Two Player Mode the surviving player keeps
+    // playing until they also top out, then the match ends and the higher
+    // score wins.
+    private void handlePlayerGameOver(boolean isPlayerOne) {
         if (roundEnded) {
             return;
         }
-        roundEnded = true;
 
-        // Stopping every board as soon as one player tops out
-        stopAll();
+        if (isPlayerOne) {
+            if (playerOneEnded) {
+                return;
+            }
+            playerOneEnded = true;
+        } else {
+            if (playerTwoEnded) {
+                return;
+            }
+            playerTwoEnded = true;
+        }
 
         if (!twoPlayerMode) {
+            roundEnded = true;
+            stopAll();
             overallStatusLabel.setText("Game Over - Score: " + playerOne.getScore());
             return;
         }
 
-        int scoreOne = playerOne.getScore();
-        int scoreTwo = playerTwo.getScore();
+        if (playerOneEnded && playerTwoEnded) {
+            // Both players have topped out, so the match is decided
+            roundEnded = true;
+            stopAll();
 
-        if (scoreOne > scoreTwo) {
-            overallStatusLabel.setText("Game Over - Player 1 Wins!");
-        } else if (scoreTwo > scoreOne) {
-            overallStatusLabel.setText("Game Over - Player 2 Wins!");
+            int scoreOne = playerOne.getScore();
+            int scoreTwo = playerTwo.getScore();
+
+            if (scoreOne > scoreTwo) {
+                overallStatusLabel.setText("Game Over - Player 1 Wins!");
+            } else if (scoreTwo > scoreOne) {
+                overallStatusLabel.setText("Game Over - Player 2 Wins!");
+            } else {
+                overallStatusLabel.setText("Game Over - It's a Tie!");
+            }
         } else {
-            overallStatusLabel.setText("Game Over - It's a Tie!");
+            // Only one player has topped out so far - let the match continue
+            // for whichever player is still alive
+            String toppedOutName = isPlayerOne ? "Player 1" : "Player 2";
+            overallStatusLabel.setText(toppedOutName + " topped out - game continues");
         }
     }
 }

@@ -165,6 +165,11 @@ public class PlayerBoard {
 
     // Pausing this player's timer and animations
     public void pause() {
+        // A board that has already topped out has nothing left to pause -
+        // leave its "Game Over" label alone
+        if (gameOverTriggered) {
+            return;
+        }
         paused = true;
         fallTimer.pause();
         pausePieceAnimations();
@@ -173,6 +178,9 @@ public class PlayerBoard {
 
     // Resuming this player's timer and animations
     public void resume() {
+        if (gameOverTriggered) {
+            return;
+        }
         paused = false;
         statusLabel.setText("");
         resumePieceAnimations();
@@ -202,7 +210,7 @@ public class PlayerBoard {
 
     // Rotating current piece 90 degrees clockwise around anchor block
     public void rotate() {
-        if (paused) {
+        if (paused || gameOverTriggered) {
             return;
         }
         if (pieceController.rotatePiece()) {
@@ -212,7 +220,7 @@ public class PlayerBoard {
 
     // Turning soft drop on or off for this player
     public void setSoftDrop(boolean active) {
-        if (paused) {
+        if (paused || gameOverTriggered) {
             return;
         }
 
@@ -298,8 +306,8 @@ public class PlayerBoard {
 
     // Moving current piece left or right
     private void movePieceHorizontal(int direction) {
-        // Preventing movement while paused
-        if (paused) {
+        // Preventing movement while paused, or once this board has topped out
+        if (paused || gameOverTriggered) {
             return;
         }
         // Moving piece if new horizontal position is available

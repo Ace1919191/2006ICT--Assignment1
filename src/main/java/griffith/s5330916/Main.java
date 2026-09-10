@@ -70,11 +70,16 @@ public class Main extends Application {
         stage.setScene(splashScene);
 
         // Transition to main application
-        Runnable transitionToAction = () -> {stage.close(); onFinished.run();};
+        Runnable transitionToAction = () -> {
+            stage.close();
+            onFinished.run();
+        };
 
         // Allow ESC to skip splash screen
         splashScene.setOnKeyPressed(event -> {
-            if (event.getCode() == KeyCode.ESCAPE) {transitionToAction.run();}
+            if (event.getCode() == KeyCode.ESCAPE) {
+                transitionToAction.run();
+            }
         });
 
         // Show splash screen for 4 seconds
@@ -86,7 +91,7 @@ public class Main extends Application {
         splashDelay.play();
     }
 
-    private void showMainWindow(Stage stage){
+    private void showMainWindow(Stage stage) {
         stage.setTitle("Tetris");
 
         //VBox (Vertical Box) is I assume JavaFX window and we modify the menuLayout
@@ -112,7 +117,10 @@ public class Main extends Application {
         playButton.setOnAction(ignored -> Game.show(stage, () -> showMainWindow(stage)));
         scoresButton.setOnAction(ignored -> HighScores.show(stage, () -> showMainWindow(stage)));
         settingsButton.setOnAction(ignored -> Settings.show(stage, () -> showMainWindow(stage)));
-        exitButton.setOnAction(ignored -> {stage.close(); System.exit(0);});
+        exitButton.setOnAction(ignored -> {
+            stage.close();
+            System.exit(0);
+        });
 
         menuLayout.getChildren().addAll(playButton, scoresButton, settingsButton, exitButton);
 

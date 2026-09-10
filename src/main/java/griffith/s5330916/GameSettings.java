@@ -8,7 +8,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Loads the Tetris board dimensions from settings.json.
+ * Loads the Tetris board dimensions and player-count setting from settings.json.
  */
 public final class GameSettings {
     private static final Path SETTINGS_FILE =
@@ -16,13 +16,16 @@ public final class GameSettings {
 
     private static final int DEFAULT_FIELD_HEIGHT = 20;
     private static final int DEFAULT_FIELD_WIDTH = 10;
+    private static final boolean DEFAULT_TWO_PLAYER_MODE = true;
 
     private final int fieldHeight;
     private final int fieldWidth;
+    private final boolean twoPlayerMode;
 
-    private GameSettings(int fieldHeight, int fieldWidth) {
+    private GameSettings(int fieldHeight, int fieldWidth, boolean twoPlayerMode) {
         this.fieldHeight = fieldHeight;
         this.fieldWidth = fieldWidth;
+        this.twoPlayerMode = twoPlayerMode;
     }
 
     public static GameSettings load() {
@@ -30,8 +33,9 @@ public final class GameSettings {
 
         int fieldHeight = getInt(json, "fieldLength", DEFAULT_FIELD_HEIGHT);
         int fieldWidth = getInt(json, "fieldWidth", DEFAULT_FIELD_WIDTH);
+        boolean twoPlayerMode = getBoolean(json, "twoPlayerMode", DEFAULT_TWO_PLAYER_MODE);
 
-        return new GameSettings(fieldHeight, fieldWidth);
+        return new GameSettings(fieldHeight, fieldWidth, twoPlayerMode);
     }
 
     public int getFieldHeight() {
@@ -40,6 +44,11 @@ public final class GameSettings {
 
     public int getFieldWidth() {
         return fieldWidth;
+    }
+
+    // Whether the game should be played as 2 players (side by side) or a single player
+    public boolean isTwoPlayerMode() {
+        return twoPlayerMode;
     }
 
     private static String readSettingsFile() {
@@ -57,6 +66,17 @@ public final class GameSettings {
 
         if (matcher.find()) {
             return Integer.parseInt(matcher.group(1));
+        }
+
+        return defaultValue;
+    }
+
+    private static boolean getBoolean(String json, String key, boolean defaultValue) {
+        Pattern pattern = Pattern.compile("\"" + key + "\"\\s*:\\s*(true|false)");
+        Matcher matcher = pattern.matcher(json);
+
+        if (matcher.find()) {
+            return Boolean.parseBoolean(matcher.group(1));
         }
 
         return defaultValue;

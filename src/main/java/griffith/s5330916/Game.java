@@ -1,76 +1,43 @@
 package griffith.s5330916;
 
-import javafx.animation.Animation;
-import javafx.animation.KeyFrame;
-import javafx.animation.Interpolator;
-import javafx.animation.Timeline;
-import javafx.animation.TranslateTransition;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Group;
-import javafx.scene.layout.StackPane;
-import javafx.scene.shape.Rectangle;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
 import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.Label;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
-import javafx.scene.layout.HBox;
-import javafx.scene.input.KeyEvent;
 import javafx.stage.Stage;
-import javafx.util.Duration;
-
-import java.util.Random;
 
 public class Game {
-
-    private int score = 0;
-    private Label scoreLabel;
-
-    private boolean paused = false;
-
-    // Keeping track of whether player is currently accelerating the piece
-    private boolean softDropActive = false;
-    private final Random random = new Random();
-
-    private GameBoard gameBoard;
-    private PieceController pieceController;
-
-    private double cellSize;
-
-    // Separate visual layer for currently falling piece
-    private Pane pieceOverlay;
-    private Group fallingPieceGroup = new Group();
-
-    // Animations used when moving the falling piece
-    private TranslateTransition horizontalAnimation;
-    private TranslateTransition verticalAnimation;
-
-    // Defining styles used by cells in the Tetris grid
-    private static final String EMPTY_CELL_STYLE =
-            "-fx-background-color: black;" +
-            "-fx-border-color: #555;" +
-            "-fx-border-width: 0.5;";
 
     private final Stage stage;
     private final Runnable onBack;
 
-    // Grid size is loaded from settings.json
-    private int fieldHeight;
-    private int fieldWidth;
+    // Whether this match is being played with one board or two boards side by side
+    private boolean twoPlayerMode;
 
-    // Each Pane represents one visible space in the Tetris grid
-    private Pane[][] gridCells;
+    // Each player runs on their own independent board.
+    // playerTwo stays null for the entire match when running in single player mode.
+    private PlayerBoard playerOne;
+    private PlayerBoard playerTwo;
 
-    // Timer controls how often the piece falls
-    private Timeline fallTimer;
+    private boolean paused = false;
 
-    private Label statusLabel;
+    // Preventing the win/tie message from being overwritten once decided
+    private boolean roundEnded = false;
+
+    // Tracking which boards have topped out so the match can continue for
+    // whichever player is still alive in Two Player Mode
+    private boolean playerOneEnded = false;
+    private boolean playerTwoEnded = false;
+
+    private Label overallStatusLabel;
 
     public Game(Stage stage, Runnable onBack) {
         this.stage = stage;
@@ -84,91 +51,62 @@ public class Game {
     }
 
     private void showGame() {
-        // Reading current grid size from settings.json
+        // Reading current grid size and player count from settings.json
         GameSettings settings = GameSettings.load();
+        int fieldHeight = settings.getFieldHeight();
+        int fieldWidth = settings.getFieldWidth();
+        twoPlayerMode = settings.isTwoPlayerMode();
 
-        fieldHeight = settings.getFieldHeight();
-        fieldWidth = settings.getFieldWidth();
+        // Creating title for Game Screen, reflecting the selected player count
+        Label titleLabel = new Label(twoPlayerMode ? "Tetris - 2 Player" : "Tetris - 1 Player");
+        titleLabel.setStyle("-fx-font-size: 30px; -fx-font-weight: bold; -fx-text-fill: yellow;");
 
-        // Creating arrays using selected field dimensions
-        gridCells = new Pane[fieldHeight][fieldWidth];
-        gameBoard = new GameBoard(fieldHeight, fieldWidth);
-        pieceController = new PieceController(gameBoard);
+        // Shared piece generator so that, in Two Player Mode, both boards
+        // receive the exact same sequence of pieces
+        PieceSequence pieceSequence = new PieceSequence();
 
-        // Creating title for Game Screen
-        Label titleLabel = new Label("Tetris");
-        titleLabel.setStyle("-fx-font-size: 30px; -fx-font-weight: bold; -fx-text-fill: yellow;"
-        );
+        // Creating player one's board. In single player mode this board accepts
+        // both WASD and Arrow Key controls so either control scheme works.
+        String playerOneLabel = twoPlayerMode ? "Player 1 (WASD)" : "Player 1";
+        playerOne = new PlayerBoard(playerOneLabel, fieldHeight, fieldWidth, () -> handlePlayerGameOver(true),
+                pieceSequence);
 
-        // Creating GridPane which will contain all Tetris cells
-        GridPane gameGrid = new GridPane();
-        gameGrid.setAlignment(Pos.CENTER);
-
-        // Calculating cell size so larger fields still fit inside the window
-        cellSize = Math.min(450.0 / fieldHeight, 600.0 / fieldWidth);
-
-        // Preventing cells from becoming unnecessarily large
-        cellSize = Math.min(cellSize, 30);
-
-        // Creating each individual cell in the Tetris grid
-        for (int row = 0; row < fieldHeight; row++) {
-            for (int column = 0; column < fieldWidth; column++) {
-                Pane cell = new Pane();
-
-                cell.setMinSize(cellSize, cellSize);
-                cell.setPrefSize(cellSize, cellSize);
-                cell.setMaxSize(cellSize, cellSize);
-                cell.setStyle(EMPTY_CELL_STYLE);
-
-                gridCells[row][column] = cell;
-                gameGrid.add(cell, column, row
-                );
-            }
+        // Only creating a second board when Two Player Mode is enabled
+        HBox boardsLayout;
+        if (twoPlayerMode) {
+            playerTwo = new PlayerBoard("Player 2 (Arrow Keys)", fieldHeight, fieldWidth,
+                    () -> handlePlayerGameOver(false), pieceSequence);
+            boardsLayout = new HBox(60, playerOne.getView(), playerTwo.getView());
+        } else {
+            playerTwo = null;
+            boardsLayout = new HBox(playerOne.getView());
         }
-        // Creating separate layer for smoothly moving falling piece
-        pieceOverlay = new Pane();
+        boardsLayout.setAlignment(Pos.CENTER);
 
-        double boardWidth = fieldWidth * cellSize;
-        double boardHeight = fieldHeight * cellSize;
-
-        pieceOverlay.setMinSize(boardWidth, boardHeight);
-        pieceOverlay.setPrefSize(boardWidth, boardHeight);
-        pieceOverlay.setMaxSize(boardWidth, boardHeight);
-        pieceOverlay.setMouseTransparent(true);
-        pieceOverlay.getChildren().add(fallingPieceGroup);
-
-        // Placing falling piece layer directly over Tetris grid
-        StackPane gameBoard = new StackPane(gameGrid, pieceOverlay);
-        gameBoard.setAlignment(Pos.CENTER);
-        gameBoard.setMinSize(boardWidth, boardHeight);
-        gameBoard.setPrefSize(boardWidth, boardHeight);
-        gameBoard.setMaxSize(boardWidth, boardHeight);
-
-        // Creating status label for displaying Game Over later
-        statusLabel = new Label("");
-        statusLabel.setStyle("-fx-text-fill: yellow; -fx-font-size: 16px;");
-
-        // Creating score label for displaying current player score
-        scoreLabel = new Label("Score: 0");
-        scoreLabel.setStyle("-fx-text-fill: yellow; -fx-font-size: 16px; -fx-font-weight: bold;"
-        );
+        // Label used to display Paused or the eventual match result
+        overallStatusLabel = new Label("");
+        overallStatusLabel.setStyle("-fx-text-fill: yellow; -fx-font-size: 18px; -fx-font-weight: bold;");
 
         // Creating Back Button for Game Screen
         Button backButton = new Button("Back");
         String menuButtonStyle = "-fx-font-size: 20px; -fx-background-color: #555; -fx-text-fill: yellow;";
-
         backButton.setStyle(menuButtonStyle);
 
-        // Pausing game and asking user to confirm returning to Main Menu
+        // Pausing the board(s) and asking user to confirm returning to Main Menu
         backButton.setOnAction(ignored -> {
-            // Remembering whether game was already paused before Back was pressed
+            // If the match has already been decided, just leave immediately
+            // instead of flashing "Paused" over the result
+            if (roundEnded) {
+                stopAll();
+                onBack.run();
+                return;
+            }
+
+            // Remembering whether the game was already paused before Back was pressed
             boolean wasPaused = paused;
 
-            // Pausing game while confirmation popup is displayed
-            paused = true;
-            fallTimer.pause();
-            pausePieceAnimations();
-            statusLabel.setText("Paused");
+            pauseAll();
+            overallStatusLabel.setText("Paused");
 
             // Creating confirmation popup
             Alert confirmation = new Alert(
@@ -182,346 +120,195 @@ public class Game {
             confirmation.setHeaderText("Exit Current Game?");
             confirmation.initOwner(stage);
             ButtonType result = confirmation.showAndWait().orElse(ButtonType.NO);
+
             if (result == ButtonType.YES) {
-                // Stopping game completely before returning to Main Menu
-                fallTimer.stop();
-                stopPieceAnimations();
-                softDropActive = false;
+                // Stopping the board(s) completely before returning to Main Menu
+                stopAll();
                 onBack.run();
             } else if (!wasPaused) {
-                // Resuming game if it was running before Back was pressed
-                paused = false;
-                statusLabel.setText("");
-                resumePieceAnimations();
-                fallTimer.play();
+                // Resuming the board(s) if the game was running before Back was pressed
+                resumeAll();
+                overallStatusLabel.setText("");
             }
         });
 
-        // Creating empty space between Score and Back Button
+        // Creating empty space between status and Back Button
         Region bottomSpacer = new Region();
         HBox.setHgrow(bottomSpacer, Priority.ALWAYS);
 
         // Creating bottom section of Game Screen
-        HBox bottomLayout = new HBox(20, scoreLabel, bottomSpacer, backButton);
+        HBox bottomLayout = new HBox(20, overallStatusLabel, bottomSpacer, backButton);
         bottomLayout.setAlignment(Pos.CENTER);
         bottomLayout.setPadding(new Insets(0, 20, 0, 20));
         bottomLayout.setMaxWidth(Double.MAX_VALUE);
 
         // VBox holds the Game Screen vertically
-        VBox gameLayout = new VBox(15);
-
+        VBox gameLayout = new VBox(20);
         gameLayout.setAlignment(Pos.CENTER);
         gameLayout.setPadding(new Insets(20));
         gameLayout.setStyle("-fx-background-color: black;");
-        gameLayout.getChildren().addAll(titleLabel, gameBoard, statusLabel, bottomLayout);
+        gameLayout.getChildren().addAll(titleLabel, boardsLayout, bottomLayout);
 
-        // Creating Scene for Game Screen
-        Scene gameScene = new Scene(gameLayout, 800, 600);
+        // Creating Scene for Game Screen. A single board needs less width than two.
+        double sceneWidth = twoPlayerMode ? 1000 : 550;
+        Scene gameScene = new Scene(gameLayout, sceneWidth, 700);
 
-        // Creating timer which moves current piece down every half second
-        fallTimer = new Timeline(new KeyFrame(Duration.millis(500), ignored -> movePieceDown()));
-        fallTimer.setCycleCount(Animation.INDEFINITE);
-
-        // Detecting keyboard controls while Game Screen is open
+        // Routing keyboard controls.
+        // Two Player Mode: Player 1 uses WASD, Player 2 uses Arrow Keys.
+        // Single Player Mode: Player 1 responds to both WASD and Arrow Keys.
         gameScene.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
             switch (event.getCode()) {
-                // Moving piece left
-                case LEFT:
+                // Player 1 controls (always active)
                 case A:
-                    movePieceHorizontal(-1);
-                    event.consume();
+                    playerOne.moveLeft();
                     break;
-
-                // Moving piece right
-                case RIGHT:
                 case D:
-                    movePieceHorizontal(1);
-                    event.consume();
+                    playerOne.moveRight();
                     break;
-
-                // Rotating piece clockwise
-                case UP:
                 case W:
-                    rotatePiece();
-                    event.consume();
+                    playerOne.rotate();
                     break;
-
-                // Accelerating piece downwards
-                case DOWN:
                 case S:
-                    // Preventing auto-repeat on key hold
-                    if (!softDropActive) {
-                        softDropActive = true;
-                        fallTimer.setRate(5);
-                        movePieceDown();
-                    }
-
-                    event.consume();
+                    playerOne.setSoftDrop(true);
                     break;
 
-                // Pausing or resuming game
+                // Player 2 controls in Two Player Mode; fall back to controlling
+                // Player 1 in Single Player Mode so Arrow Keys also work.
+                case LEFT:
+                    (twoPlayerMode ? playerTwo : playerOne).moveLeft();
+                    break;
+                case RIGHT:
+                    (twoPlayerMode ? playerTwo : playerOne).moveRight();
+                    break;
+                case UP:
+                    (twoPlayerMode ? playerTwo : playerOne).rotate();
+                    break;
+                case DOWN:
+                    (twoPlayerMode ? playerTwo : playerOne).setSoftDrop(true);
+                    break;
+
+                // Pausing or resuming the board(s) together
                 case P:
-                    togglePause();
-                    event.consume();
+                    togglePauseAll();
+                    break;
+
+                default:
                     break;
             }
+            event.consume();
         });
 
-        // Detecting when Down or S is released
+        // Detecting when a soft drop key is released
         gameScene.addEventFilter(KeyEvent.KEY_RELEASED, event -> {
             switch (event.getCode()) {
-                case DOWN:
                 case S:
-                    // Returning falling speed back to normal
-                    softDropActive = false;
-                    fallTimer.setRate(1);
-                    event.consume();
+                    playerOne.setSoftDrop(false);
+                    break;
+                case DOWN:
+                    (twoPlayerMode ? playerTwo : playerOne).setSoftDrop(false);
+                    break;
+                default:
                     break;
             }
+            event.consume();
         });
 
         // Rendering Game Scene onto existing Stage
         stage.setScene(gameScene);
 
-        // Spawning first Tetris piece
-        spawnPiece();
-
-        // Starting automatic falling
-        fallTimer.play();
+        // Starting the board(s) at the same time
+        playerOne.start();
+        if (twoPlayerMode) {
+            playerTwo.start();
+        }
     }
 
-    // Pausing or resuming the game
-    private void togglePause() {
-        paused = !paused;
-        if (paused) {
-            fallTimer.pause();
-            statusLabel.setText("Paused");
+    // Pausing or resuming the board(s) together
+    private void togglePauseAll() {
+        if (roundEnded) {
+            return;
+        }
 
+        if (paused) {
+            resumeAll();
+            overallStatusLabel.setText("");
         } else {
-            fallTimer.play();
-            statusLabel.setText("");
+            pauseAll();
+            overallStatusLabel.setText("Paused");
         }
     }
 
-    // Spawning new piece at top centre of Tetris grid
-    private void spawnPiece() {
-        stopPieceAnimations();
+    private void pauseAll() {
+        paused = true;
+        playerOne.pause();
+        if (twoPlayerMode) {
+            playerTwo.pause();
+        }
+    }
 
-        // Removing visual object belonging to previous piece
-        pieceOverlay.getChildren().remove(fallingPieceGroup);
+    private void resumeAll() {
+        paused = false;
+        playerOne.resume();
+        if (twoPlayerMode) {
+            playerTwo.resume();
+        }
+    }
 
-        // Creating completely new visual object for spawned piece
-        fallingPieceGroup = new Group();
+    private void stopAll() {
+        playerOne.stop();
+        if (twoPlayerMode) {
+            playerTwo.stop();
+        }
+    }
 
-        pieceOverlay.getChildren().add(fallingPieceGroup);
-
-        int anchorRow = 1;
-        int anchorColumn = fieldWidth / 2;
-
-        // Selecting random Tetris piece
-        PieceType[] availablePieces = PieceType.values();
-        PieceType currentPieceType = availablePieces[random.nextInt(availablePieces.length)];
-        ActivePiece currentPiece = new ActivePiece(currentPieceType, anchorRow, anchorColumn);
-        pieceController.setCurrentPiece(currentPiece);
-
-        // Ending game if new piece cannot fit onto grid
-        if (!gameBoard.canPlacePiece(currentPiece, anchorRow, anchorColumn)) {
-            fallTimer.stop();
-            stopPieceAnimations();
-            fallingPieceGroup.getChildren().clear();
-            statusLabel.setText("Game Over");
+    // Called when a specific board tops out. In Single Player Mode this ends
+    // the match immediately. In Two Player Mode the surviving player keeps
+    // playing until they also top out, then the match ends and the higher
+    // score wins.
+    private void handlePlayerGameOver(boolean isPlayerOne) {
+        if (roundEnded) {
             return;
         }
 
-        // Resetting animations and drawing new falling piece at spawn position
-        stopPieceAnimations();
-        updateFallingPieceShape();
-        fallingPieceGroup.setTranslateX(anchorColumn * cellSize);
-        fallingPieceGroup.setTranslateY(anchorRow * cellSize);
-
-        renderGrid();
-    }
-
-    // Moving current piece down one grid space
-    private void movePieceDown() {
-        // Preventing movement while game is paused
-        if (paused) {
-            return;
-        }
-        // Moving piece if next position is available
-        if (pieceController.movePieceDown()) {
-            animateVerticalMovement();
-        } else {
-            // Locking piece into grid once it can no longer move down
-            lockPiece();
-
-            // Checking for completed rows and adding score
-            int linesCleared = gameBoard.clearFullRows();
-            addScore(linesCleared);
-
-            // Spawning another random piece
-            spawnPiece();
-        }
-    }
-
-    // Moving current piece left or right
-    private void movePieceHorizontal(int direction) {
-        // Preventing movement while game is paused
-        if (paused) {
-            return;
-        }
-        // Moving piece if new horizontal position is available
-        if (pieceController.movePieceHorizontal(direction)) {
-            animateHorizontalMovement();
-        }
-    }
-
-    // Rotating current piece 90 degrees clockwise around anchor block
-    private void rotatePiece() {
-        // Preventing movement while game is paused
-        if (paused) {
-            return;
-        }
-
-        if (pieceController.rotatePiece()) {
-            // Rebuilding falling piece using its new rotated shape
-            updateFallingPieceShape();
-        }
-    }
-
-    // Converting falling piece into locked blocks
-    private void lockPiece() {
-        // Stopping visual movement before converting piece into locked blocks
-        stopPieceAnimations();
-
-        gameBoard.lockPiece(pieceController.getCurrentPiece());
-
-        // Removing separate falling visual because piece is now part of grid
-        fallingPieceGroup.getChildren().clear();
-
-        renderGrid();
-    }
-
-    // Adding score depending on number of lines cleared at once
-    private void addScore(int linesCleared) {
-        switch (linesCleared) {
-            case 1:
-                score += 100;
-                break;
-            case 2:
-                score += 300;
-                break;
-            case 3:
-                score += 500;
-                break;
-            case 4:
-                score += 800;
-                break;
-        }
-        // Updating displayed score
-        scoreLabel.setText("Score: " + score);
-    }
-
-    // Updating appearance of entire Tetris grid
-    private void renderGrid() {
-        // Resetting cells to either empty or previously landed blocks
-        for (int row = 0; row < fieldHeight; row++) {
-            for (int column = 0; column < fieldWidth; column++) {
-                PieceType lockedPiece = gameBoard.getLockedBlock(row, column);
-                if (lockedPiece != null) {
-                    gridCells[row][column].setStyle(createPieceStyle(lockedPiece.getColour()));
-                } else {
-                    gridCells[row][column].setStyle(EMPTY_CELL_STYLE);
-                }
+        if (isPlayerOne) {
+            if (playerOneEnded) {
+                return;
             }
-        }
-    }
-
-    // Creating visual blocks for currently falling Tetris piece
-    private void updateFallingPieceShape() {
-        fallingPieceGroup.getChildren().clear();
-
-        ActivePiece currentPiece = pieceController.getCurrentPiece();
-        for (int[] block : currentPiece.getCurrentPieceShape()) {
-            Rectangle rectangle = new Rectangle(cellSize, cellSize);
-
-            // Positioning block relative to anchor block
-            rectangle.setX(block[1] * cellSize);
-            rectangle.setY(block[0] * cellSize);
-
-            // Applying piece colour and border to individual block
-            rectangle.setStyle("-fx-fill: " + currentPiece.getCurrentPieceType().getColour() + ";" +
-                "-fx-stroke: black;  -fx-stroke-width: 2;");
-
-            fallingPieceGroup.getChildren().add(rectangle);
-        }
-    }
-
-    // Smoothly moving falling piece left or right
-    private void animateHorizontalMovement() {
-        if (horizontalAnimation != null) {
-            horizontalAnimation.stop();
+            playerOneEnded = true;
+        } else {
+            if (playerTwoEnded) {
+                return;
+            }
+            playerTwoEnded = true;
         }
 
-        horizontalAnimation = new TranslateTransition(
-                Duration.millis(80),
-                fallingPieceGroup
-        );
-
-        horizontalAnimation.setToX(pieceController.getCurrentPiece().getAnchorColumn() * cellSize);
-        horizontalAnimation.setInterpolator(Interpolator.EASE_BOTH);
-        horizontalAnimation.play();
-    }
-
-    // Smoothly moving falling piece down towards its next grid position
-    private void animateVerticalMovement() {
-        if (verticalAnimation != null) {
-            verticalAnimation.stop();
+        if (!twoPlayerMode) {
+            roundEnded = true;
+            stopAll();
+            overallStatusLabel.setText("Game Over - Score: " + playerOne.getScore());
+            return;
         }
 
-        double animationTime = 480;
+        if (playerOneEnded && playerTwoEnded) {
+            // Both players have topped out, so the match is decided
+            roundEnded = true;
+            stopAll();
 
-        // Shortening animation while Down or S is accelerating the piece
-        if (fallTimer.getRate() > 1) {animationTime = 90;}
+            int scoreOne = playerOne.getScore();
+            int scoreTwo = playerTwo.getScore();
 
-        verticalAnimation = new TranslateTransition(Duration.millis(animationTime), fallingPieceGroup);
-
-        verticalAnimation.setToY(pieceController.getCurrentPiece().getAnchorRow() * cellSize);
-        verticalAnimation.setInterpolator(Interpolator.LINEAR);
-        verticalAnimation.play();
-    }
-
-    // Pausing visual movement of current falling piece
-    private void pausePieceAnimations() {
-        if (horizontalAnimation != null) {horizontalAnimation.pause();}
-        if (verticalAnimation != null) {verticalAnimation.pause();}
-    }
-
-    // Resuming visual movement of current falling piece
-    private void resumePieceAnimations() {
-        if (horizontalAnimation != null) {horizontalAnimation.play();}
-        if (verticalAnimation != null) {verticalAnimation.play();}
-    }
-
-    // Stopping current movement animations before locking or replacing piece
-    private void stopPieceAnimations() {
-        if (horizontalAnimation != null) {
-            horizontalAnimation.stop();
-            horizontalAnimation.setNode(null);
-            horizontalAnimation = null;
-        }
-
-        if (verticalAnimation != null) {
-            verticalAnimation.stop();
-            verticalAnimation.setNode(null);
-            verticalAnimation = null;
+            if (scoreOne > scoreTwo) {
+                overallStatusLabel.setText("Game Over - Player 1 Wins!");
+            } else if (scoreTwo > scoreOne) {
+                overallStatusLabel.setText("Game Over - Player 2 Wins!");
+            } else {
+                overallStatusLabel.setText("Game Over - It's a Tie!");
+            }
+        } else {
+            // Only one player has topped out so far - let the match continue
+            // for whichever player is still alive
+            String toppedOutName = isPlayerOne ? "Player 1" : "Player 2";
+            overallStatusLabel.setText(toppedOutName + " topped out - game continues");
         }
     }
-
-    // Creating coloured block with border so individual cells remain visible
-    private static String createPieceStyle(String colour) {
-        return "-fx-background-color: " + colour + ";" +
-                "-fx-border-color: black; -fx-border-width: 2;";
-    }
-
 }

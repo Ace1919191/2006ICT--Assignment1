@@ -37,6 +37,7 @@ public class Settings {
         boolean soundEffects = getBoolean(json, "soundEffects", true);
         boolean aiPlayer = getBoolean(json, "aiPlayer", false);
         boolean extendedMode = getBoolean(json, "extendedMode", false);
+        boolean twoPlayerMode = getBoolean(json, "twoPlayerMode", true);
 
         // Creating title for Settings Screen
         Label titleLabel = new Label("Settings");
@@ -63,11 +64,15 @@ public class Settings {
         CheckBox aiPlayerCheckBox = createCheckBox(aiPlayer);
         CheckBox extendedModeCheckBox = createCheckBox(extendedMode);
 
+        // Creating CheckBox controlling whether the match is 1 or 2 players
+        CheckBox twoPlayerModeCheckBox = createCheckBox(twoPlayerMode);
+
         // Creating labels to display On or Off beside each CheckBox
         Label musicValue = createLabel(music ? "On" : "Off");
         Label soundEffectsValue = createLabel(soundEffects ? "On" : "Off");
         Label aiPlayerValue = createLabel(aiPlayer ? "On" : "Off");
         Label extendedModeValue = createLabel(extendedMode ? "On" : "Off");
+        Label twoPlayerModeValue = createLabel(twoPlayerMode ? "2 Players" : "1 Player");
 
         // Updating On/Off labels when CheckBoxes are changed
         musicValue.textProperty().bind(
@@ -94,6 +99,13 @@ public class Settings {
                         .otherwise("Off")
         );
 
+        // Updating displayed player-count label when the Two Player checkbox is toggled
+        twoPlayerModeValue.textProperty().bind(
+                Bindings.when(twoPlayerModeCheckBox.selectedProperty())
+                        .then("2 Players")
+                        .otherwise("1 Player")
+        );
+
         // GridPane allows each setting to remain aligned into three columns
         GridPane settingsGrid = new GridPane();
         settingsGrid.setAlignment(Pos.CENTER);
@@ -118,40 +130,45 @@ public class Settings {
 
         settingsGrid.getColumnConstraints().addAll(labelColumn, controlColumn, valueColumn);
 
-        // Adding Field Width controls to first row
-        settingsGrid.add(createLabel("Field Width (No. of cells):"), 0, 0);
-        settingsGrid.add(widthSlider, 1, 0);
-        settingsGrid.add(widthValue, 2, 0);
+        // Adding Player Mode controls to first row so it's easy to find
+        settingsGrid.add(createLabel("Two Player Mode:"), 0, 0);
+        settingsGrid.add(twoPlayerModeCheckBox, 1, 0);
+        settingsGrid.add(twoPlayerModeValue, 2, 0);
 
-        // Adding Field Height controls to second row
-        settingsGrid.add(createLabel("Field Height (No. of cells):"), 0, 1);
-        settingsGrid.add(lengthSlider, 1, 1);
-        settingsGrid.add(lengthValue, 2, 1);
+        // Adding Field Width controls
+        settingsGrid.add(createLabel("Field Width (No. of cells):"), 0, 1);
+        settingsGrid.add(widthSlider, 1, 1);
+        settingsGrid.add(widthValue, 2, 1);
 
-        // Adding Game Level controls to third row
-        settingsGrid.add(createLabel("Game Level:"), 0, 2);
-        settingsGrid.add(levelSlider, 1, 2);
-        settingsGrid.add(levelValue, 2, 2);
+        // Adding Field Height controls
+        settingsGrid.add(createLabel("Field Height (No. of cells):"), 0, 2);
+        settingsGrid.add(lengthSlider, 1, 2);
+        settingsGrid.add(lengthValue, 2, 2);
+
+        // Adding Game Level controls
+        settingsGrid.add(createLabel("Game Level:"), 0, 3);
+        settingsGrid.add(levelSlider, 1, 3);
+        settingsGrid.add(levelValue, 2, 3);
 
         // Adding Music controls
-        settingsGrid.add(createLabel("Music:"), 0, 3);
-        settingsGrid.add(musicCheckBox, 1, 3);
-        settingsGrid.add(musicValue, 2, 3);
+        settingsGrid.add(createLabel("Music:"), 0, 4);
+        settingsGrid.add(musicCheckBox, 1, 4);
+        settingsGrid.add(musicValue, 2, 4);
 
         // Adding Sound Effects controls
-        settingsGrid.add(createLabel("Sound Effects:"), 0, 4);
-        settingsGrid.add(soundEffectsCheckBox, 1, 4);
-        settingsGrid.add(soundEffectsValue, 2, 4);
+        settingsGrid.add(createLabel("Sound Effects:"), 0, 5);
+        settingsGrid.add(soundEffectsCheckBox, 1, 5);
+        settingsGrid.add(soundEffectsValue, 2, 5);
 
         // Adding AI Player controls
-        settingsGrid.add(createLabel("AI Player:"), 0, 5);
-        settingsGrid.add(aiPlayerCheckBox, 1, 5);
-        settingsGrid.add(aiPlayerValue, 2, 5);
+        settingsGrid.add(createLabel("AI Player:"), 0, 6);
+        settingsGrid.add(aiPlayerCheckBox, 1, 6);
+        settingsGrid.add(aiPlayerValue, 2, 6);
 
         // Adding Extended Mode controls
-        settingsGrid.add(createLabel("Extended Mode:"), 0, 6);
-        settingsGrid.add(extendedModeCheckBox, 1, 6);
-        settingsGrid.add(extendedModeValue, 2, 6);
+        settingsGrid.add(createLabel("Extended Mode:"), 0, 7);
+        settingsGrid.add(extendedModeCheckBox, 1, 7);
+        settingsGrid.add(extendedModeValue, 2, 7);
 
         // Creating Button Objects for Settings Screen
         Button saveButton = new Button("Save");
@@ -182,7 +199,8 @@ public class Settings {
                     musicCheckBox.isSelected(),
                     soundEffectsCheckBox.isSelected(),
                     aiPlayerCheckBox.isSelected(),
-                    extendedModeCheckBox.isSelected()
+                    extendedModeCheckBox.isSelected(),
+                    twoPlayerModeCheckBox.isSelected()
             );
             saveMessage.setText("Settings Saved");
         });
@@ -204,7 +222,7 @@ public class Settings {
         settingsLayout.getChildren().addAll(titleLabel, settingsGrid, buttonLayout, saveMessage);
 
         // Creating Scene and rendering it onto the existing Stage
-        Scene settingsScene = new Scene(settingsLayout, 800, 600);
+        Scene settingsScene = new Scene(settingsLayout, 800, 650);
         stage.setScene(settingsScene);
     }
 
@@ -260,7 +278,8 @@ public class Settings {
             boolean music,
             boolean soundEffects,
             boolean aiPlayer,
-            boolean extendedMode) {
+            boolean extendedMode,
+            boolean twoPlayerMode) {
 
         String json =
                 "{\n" +
@@ -270,7 +289,8 @@ public class Settings {
                         "  \"music\": " + music + ",\n" +
                         "  \"soundEffects\": " + soundEffects + ",\n" +
                         "  \"aiPlayer\": " + aiPlayer + ",\n" +
-                        "  \"extendedMode\": " + extendedMode + "\n" +
+                        "  \"extendedMode\": " + extendedMode + ",\n" +
+                        "  \"twoPlayerMode\": " + twoPlayerMode + "\n" +
                         "}";
 
         try {

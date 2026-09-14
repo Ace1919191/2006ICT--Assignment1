@@ -25,9 +25,17 @@ import javafx.scene.input.KeyEvent;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Random;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-public class Game {
+public class x_Game {
+    private static final Path SETTINGS_FILE =
+            Paths.get("src", "main", "resources", "settings.json");
 
     private int score = 0;
     private Label scoreLabel;
@@ -36,10 +44,88 @@ public class Game {
 
     // Keeping track of whether player is currently accelerating the piece
     private boolean softDropActive = false;
+    // Defining original Tetris piece using positions relative to the anchor block
+    // Defining all Tetris piece shapes and their colours
+
+    /*
+    The way that storing a tetris piece's block data works is as follows:
+    Within the piece data's array each value set represents a "block" of the piece,
+    the numbers represents the offset of that block from the "anchor" piece,
+    so for the I piece it translates to:
+        1. One block to the left            {0, -1}
+        2. *Anchor Block                    {0, 0}
+        3. One block to the right           {0, 1}
+        4.One block 2 spaces to the right   {0, 2}
+        [][*][][]
+     */
+
+    private enum PieceType {
+        I(new int[][]{
+                {0, -1},
+                {0, 0},
+                {0, 1},
+                {0, 2}
+        }, "cyan", true),
+
+        O(new int[][]{
+                {0, 0},
+                {0, 1},
+                {1, 0},
+                {1, 1}
+        }, "yellow", false),
+
+        T(new int[][]{
+                {0, -1},
+                {0, 0},
+                {0, 1},
+                {1, 0}
+        }, "purple", true),
+
+        L(new int[][]{
+                {-1, 1},
+                {0, -1},
+                {0, 0},
+                {0, 1}
+        }, "orange", true),
+
+        J(new int[][]{
+                {-1, -1},
+                {0, -1},
+                {0, 0},
+                {0, 1}
+        }, "blue", true),
+
+        S(new int[][]{
+                {0, 0},
+                {0, 1},
+                {1, -1},
+                {1, 0}
+        }, "green", true),
+
+        Z(new int[][]{
+                {0, -1},
+                {0, 0},
+                {1, 0},
+                {1, 1}
+        }, "red", true);
+
+        private final int[][] shape;
+        private final String colour;
+        private final boolean rotatable;
+
+        PieceType(int[][] shape, String colour, boolean rotatable) {
+            this.shape = shape;
+            this.colour = colour;
+            this.rotatable = rotatable;
+        }
+    }
+
     private final Random random = new Random();
 
-    private GameBoard gameBoard;
-    private PieceController pieceController;
+    private PieceType currentPieceType;
+    private int[][] currentPieceShape;
+
+    private PieceType[][] lockedBlocks;
 
     private double cellSize;
 
@@ -67,33 +153,36 @@ public class Game {
     // Each Pane represents one visible space in the Tetris grid
     private Pane[][] gridCells;
 
+    // Defining current position of the anchor block
+    private int anchorRow;
+    private int anchorColumn;
+
     // Timer controls how often the piece falls
     private Timeline fallTimer;
 
     private Label statusLabel;
 
-    public Game(Stage stage, Runnable onBack) {
+    public x_Game(Stage stage, Runnable onBack) {
         this.stage = stage;
         this.onBack = onBack;
     }
 
     public static void show(Stage stage, Runnable onBack) {
         // Creating Game Screen Object and displaying it
-        Game game = new Game(stage, onBack);
+        x_Game game = new x_Game(stage, onBack);
         game.showGame();
     }
 
     private void showGame() {
         // Reading current grid size from settings.json
-        GameSettings settings = GameSettings.load();
+        String json = readSettingsFile();
 
-        fieldHeight = settings.getFieldHeight();
-        fieldWidth = settings.getFieldWidth();
+        fieldHeight = getInt(json, "fieldLength", 20);
+        fieldWidth = getInt(json, "fieldWidth", 10);
 
         // Creating arrays using selected field dimensions
         gridCells = new Pane[fieldHeight][fieldWidth];
-        gameBoard = new GameBoard(fieldHeight, fieldWidth);
-        pieceController = new PieceController(gameBoard);
+        lockedBlocks = new PieceType[fieldHeight][fieldWidth];
 
         // Creating title for Game Screen
         Label titleLabel = new Label("Tetris");
@@ -303,6 +392,43 @@ public class Game {
         }
     }
 
+    // Checking entire grid for completed rows
+    private int clearFullRows() {
+        int linesCleared = 0;
+        // Starting from bottom because rows above will move down
+        for (int row = fieldHeight - 1; row >= 0; row--) {
+            if (isRowFull(row)) {
+                removeRow(row);
+                linesCleared++;
+                // Checking same row again because another row has moved into it
+                row++;
+            }
+        }
+        return linesCleared;
+    }
+
+    // Checking if every grid space in a row contains a block
+    private boolean isRowFull(int row) {
+        for (int column = 0; column < fieldWidth; column++) {
+            if (lockedBlocks[row][column] == null) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // Removing completed row and moving all rows above down by one
+    private void removeRow(int completedRow) {
+        // Moving every row above the completed row down one position
+        for (int row = completedRow; row > 0; row--) {
+            if (fieldWidth >= 0) System.arraycopy(lockedBlocks[row - 1], 0, lockedBlocks[row], 0, fieldWidth);
+        }
+        // Clearing the new top row
+        for (int column = 0; column < fieldWidth; column++) {
+            lockedBlocks[0][column] = null;
+        }
+    }
+
     // Spawning new piece at top centre of Tetris grid
     private void spawnPiece() {
         stopPieceAnimations();
@@ -315,17 +441,17 @@ public class Game {
 
         pieceOverlay.getChildren().add(fallingPieceGroup);
 
-        int anchorRow = 1;
-        int anchorColumn = fieldWidth / 2;
+        anchorRow = 1;
+        anchorColumn = fieldWidth / 2;
 
         // Selecting random Tetris piece
         PieceType[] availablePieces = PieceType.values();
-        PieceType currentPieceType = availablePieces[random.nextInt(availablePieces.length)];
-        ActivePiece currentPiece = new ActivePiece(currentPieceType, anchorRow, anchorColumn);
-        pieceController.setCurrentPiece(currentPiece);
+        currentPieceType = availablePieces[random.nextInt(availablePieces.length)];
+        // Creating copy of selected shape so it can be rotated
+        currentPieceShape = copyShape(currentPieceType.shape);
 
         // Ending game if new piece cannot fit onto grid
-        if (!gameBoard.canPlacePiece(currentPiece, anchorRow, anchorColumn)) {
+        if (!canPlacePiece(anchorRow, anchorColumn)) {
             fallTimer.stop();
             stopPieceAnimations();
             fallingPieceGroup.getChildren().clear();
@@ -348,15 +474,17 @@ public class Game {
         if (paused) {
             return;
         }
+        int nextRow = anchorRow + 1;
         // Moving piece if next position is available
-        if (pieceController.movePieceDown()) {
+        if (canPlacePiece(nextRow, anchorColumn)) {
+            anchorRow = nextRow;
             animateVerticalMovement();
         } else {
             // Locking piece into grid once it can no longer move down
             lockPiece();
 
             // Checking for completed rows and adding score
-            int linesCleared = gameBoard.clearFullRows();
+            int linesCleared = clearFullRows();
             addScore(linesCleared);
 
             // Spawning another random piece
@@ -370,8 +498,10 @@ public class Game {
         if (paused) {
             return;
         }
+        int nextColumn = anchorColumn + direction;
         // Moving piece if new horizontal position is available
-        if (pieceController.movePieceHorizontal(direction)) {
+        if (canPlacePiece(anchorRow, nextColumn)) {
+            anchorColumn = nextColumn;
             animateHorizontalMovement();
         }
     }
@@ -383,10 +513,55 @@ public class Game {
             return;
         }
 
-        if (pieceController.rotatePiece()) {
+        // Square piece does not need to be rotated
+        if (!currentPieceType.rotatable) {
+            return;
+        }
+
+        int[][] rotatedShape = new int[currentPieceShape.length][2];
+        for (int i = 0; i < currentPieceShape.length; i++) {
+            int rowOffset = currentPieceShape[i][0];
+            int columnOffset = currentPieceShape[i][1];
+
+            // Rotating row and column offsets 90 degrees clockwise
+            rotatedShape[i][0] = columnOffset;
+            rotatedShape[i][1] = -rowOffset;
+        }
+
+        // Only applying rotation if rotated piece fits on grid
+        if (canPlacePiece(anchorRow, anchorColumn, rotatedShape)) {
+            currentPieceShape = rotatedShape;
+
             // Rebuilding falling piece using its new rotated shape
             updateFallingPieceShape();
         }
+    }
+
+    // Checking if piece can exist at specified anchor position
+    // Checking if current piece can exist at specified anchor position
+    private boolean canPlacePiece(
+            int testAnchorRow,
+            int testAnchorColumn) {
+        return canPlacePiece(testAnchorRow, testAnchorColumn, currentPieceShape);
+    }
+
+    // Checking if specified piece shape can exist at anchor position
+    private boolean canPlacePiece(int testAnchorRow, int testAnchorColumn, int[][] pieceShape) {
+        for (int[] block : pieceShape) {
+            int row = testAnchorRow + block[0];
+            int column = testAnchorColumn + block[1];
+
+            // Checking if block would leave the grid
+            if (row < 0 || row >= fieldHeight || column < 0 || column >= fieldWidth) {
+                return false;
+            }
+
+            // Checking if block would collide with landed piece
+            if (lockedBlocks[row][column] != null) {
+                return false;
+            }
+        }
+        return true;
     }
 
     // Converting falling piece into locked blocks
@@ -394,7 +569,13 @@ public class Game {
         // Stopping visual movement before converting piece into locked blocks
         stopPieceAnimations();
 
-        gameBoard.lockPiece(pieceController.getCurrentPiece());
+        for (int[] block : currentPieceShape) {
+            int row = anchorRow + block[0];
+            int column = anchorColumn + block[1];
+
+            // Saving Piece Type so placed block retains its colour
+            lockedBlocks[row][column] = currentPieceType;
+        }
 
         // Removing separate falling visual because piece is now part of grid
         fallingPieceGroup.getChildren().clear();
@@ -427,9 +608,9 @@ public class Game {
         // Resetting cells to either empty or previously landed blocks
         for (int row = 0; row < fieldHeight; row++) {
             for (int column = 0; column < fieldWidth; column++) {
-                PieceType lockedPiece = gameBoard.getLockedBlock(row, column);
+                PieceType lockedPiece = lockedBlocks[row][column];
                 if (lockedPiece != null) {
-                    gridCells[row][column].setStyle(createPieceStyle(lockedPiece.getColour()));
+                    gridCells[row][column].setStyle(createPieceStyle(lockedPiece.colour));
                 } else {
                     gridCells[row][column].setStyle(EMPTY_CELL_STYLE);
                 }
@@ -441,8 +622,7 @@ public class Game {
     private void updateFallingPieceShape() {
         fallingPieceGroup.getChildren().clear();
 
-        ActivePiece currentPiece = pieceController.getCurrentPiece();
-        for (int[] block : currentPiece.getCurrentPieceShape()) {
+        for (int[] block : currentPieceShape) {
             Rectangle rectangle = new Rectangle(cellSize, cellSize);
 
             // Positioning block relative to anchor block
@@ -450,7 +630,7 @@ public class Game {
             rectangle.setY(block[0] * cellSize);
 
             // Applying piece colour and border to individual block
-            rectangle.setStyle("-fx-fill: " + currentPiece.getCurrentPieceType().getColour() + ";" +
+            rectangle.setStyle("-fx-fill: " + currentPieceType.colour + ";" +
                 "-fx-stroke: black;  -fx-stroke-width: 2;");
 
             fallingPieceGroup.getChildren().add(rectangle);
@@ -468,7 +648,7 @@ public class Game {
                 fallingPieceGroup
         );
 
-        horizontalAnimation.setToX(pieceController.getCurrentPiece().getAnchorColumn() * cellSize);
+        horizontalAnimation.setToX(anchorColumn * cellSize);
         horizontalAnimation.setInterpolator(Interpolator.EASE_BOTH);
         horizontalAnimation.play();
     }
@@ -486,7 +666,7 @@ public class Game {
 
         verticalAnimation = new TranslateTransition(Duration.millis(animationTime), fallingPieceGroup);
 
-        verticalAnimation.setToY(pieceController.getCurrentPiece().getAnchorRow() * cellSize);
+        verticalAnimation.setToY(anchorRow * cellSize);
         verticalAnimation.setInterpolator(Interpolator.LINEAR);
         verticalAnimation.play();
     }
@@ -524,4 +704,34 @@ public class Game {
                 "-fx-border-color: black; -fx-border-width: 2;";
     }
 
+    // Creating separate copy of piece shape so it can be rotated
+    private static int[][] copyShape(int[][] shape) {
+        int[][] copiedShape = new int[shape.length][2];
+        for (int i = 0; i < shape.length; i++) {
+            copiedShape[i][0] = shape[i][0];
+            copiedShape[i][1] = shape[i][1];
+        }
+        return copiedShape;
+    }
+
+    // Reading contents of settings JSON file
+    private static String readSettingsFile() {
+        try {
+            return Files.readString(SETTINGS_FILE);
+        } catch (IOException e) {
+            System.err.println("Could not read settings.json: " + e.getMessage());
+            return "";
+        }
+    }
+
+    // Finding integer setting from JSON and using default if it cannot be found
+    private static int getInt(String json, String key, int defaultValue) {
+        Pattern pattern = Pattern.compile("\"" + key + "\"\\s*:\\s*(\\d+)");
+        Matcher matcher = pattern.matcher(json);
+
+        if (matcher.find()) {
+            return Integer.parseInt(matcher.group(1));
+        }
+        return defaultValue;
+    }
 }

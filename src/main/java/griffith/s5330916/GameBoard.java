@@ -11,6 +11,17 @@ public class GameBoard {
         lockedBlocks = new PieceType[fieldHeight][fieldWidth];
     }
 
+    public int[][] getServerCells() {
+        int[][] cells = new int[fieldHeight][fieldWidth];
+        for (int row = 0; row < fieldHeight; row++) {
+            for (int column = 0; column < fieldWidth; column++) {
+                cells[row][column] =
+                        lockedBlocks[row][column] == null ? 0 : 1;
+            }
+        }
+        return cells;
+    }
+
     // Checking entire grid for completed rows
     public int clearFullRows() {
         int linesCleared = 0;

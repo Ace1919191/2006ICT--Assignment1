@@ -44,7 +44,35 @@ public final class TetrisAI {
         return new Placement(clone, cleared);
     }
 
-}
-public List<Move> legalMoves(GameBoard board, piece); {
+    private boolean rotateShape(GameBoard board, ActivePiece piece) {
 
+        if (!piece.getCurrentPieceType().isRotatable()) {
+            return false;
+        }
+
+        int[][] pieceShape = piece.getCurrentPieceShape();
+        int[][] rotatedShape = new int[pieceShape.length][2];
+
+        for (int i = 0; i < pieceShape.length; i++) {
+            int rowOffset = pieceShape[i][0];
+            int colOffset = pieceShape[i][1];
+            rotatedShape[i][0] = colOffset;
+            rotatedShape[i][1] = -rowOffset;
+        }
+
+        if (board.canPlacePiece(piece.getAnchorRow(), piece.getAnchorColumn(), rotatedShape)) {
+            piece.setCurrentPieceShape(rotatedShape);
+            return true;
+        }
+        return false;
+    }
+
+
+    public List<Move> legalMoves(GameBoard board, ActivePiece piece) {
+        List<Move> moves = new ArrayList<>();
+
+
+        return moves;
+
+    }
 }

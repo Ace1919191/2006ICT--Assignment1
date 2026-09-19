@@ -21,22 +21,30 @@ public final class TetrisAI {
         return clone;
     }
 
+    private Placement simulateDrop(GameBoard board, ActivePiece piece) {
 
+        GameBoard clone = copyBoard(board);
+        ActivePiece falling = new ActivePiece(
+                piece.getCurrentPieceType(),
+                piece.getAnchorRow(),
+                piece.getAnchorColumn()
+        );
+        falling.setCurrentPieceShape(piece.getCurrentPieceShape());
 
+        while (clone.canPlacePiece(
+                falling.getAnchorRow() + 1,
+                falling.getAnchorColumn(),
+                falling.getCurrentPieceShape()
+        )) {
+            falling.setAnchorRow(falling.getAnchorRow() + 1);
+        }
 
+        clone.lockPiece(falling);
+        int cleared = clone.clearFullRows();
+        return new Placement(clone, cleared);
+    }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+}
+public List<Move> legalMoves(GameBoard board, piece); {
 
 }

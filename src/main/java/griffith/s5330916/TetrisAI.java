@@ -5,6 +5,9 @@ import java.util.List;
 
 public final class TetrisAI {
 
+    private final BoardEvaluator evaluator;
+    public TetrisAI(BoardEvaluator evaluator) {this.evaluator = evaluator; }
+
     public GameBoard copyBoard(GameBoard board) {
         GameBoard clone = new GameBoard(board.height(), board.width());
 
@@ -70,8 +73,38 @@ public final class TetrisAI {
 
     public List<Move> legalMoves(GameBoard board, ActivePiece piece) {
         List<Move> moves = new ArrayList<>();
+        for (int rotation = 0; rotation < piece.rotationCount(); rotation++) {
+            ActivePiece rotated = new ActivePiece(
+                piece.getCurrentPieceType(),
+                piece.getAnchorRow(),
+                piece.getAnchorColumn()
+            );
+            rotated.setCurrentPieceShape(piece.getCurrentPieceShape());
 
+            for (int r = 0; r < rotation; r++) {
+                rotateShape(board, rotated);
+            }
 
+            int minCol = Integer.MAX_VALUE;
+            int maxCol = Integer.MIN_VALUE;
+            for (int[] block : rotated.getCurrentPieceShape()) {
+                minCol = Math.min(minCol, block[1]);
+                maxCol = Math.max(maxCol, block[1]);
+            }
+            int shapeWidth = (maxCol - minCol) + 1;
+
+            for (int col = 0; col <= board.width() - shapeWidth; col++) {
+                rotated.setAnchorColumn(col);
+
+                Placement result  = simulateDrop(board, rotated);
+                if (result == null) {
+                    continue;
+                }
+                int score = evaluator.evaluate(result.board(), result.linesCleared());
+                moves.add(new Move(col, rotation, score));
+            }
+
+        }
         return moves;
 
     }

@@ -43,4 +43,7 @@ public class ActivePiece {
     public void setAnchorColumn(int anchorColumn) {
         this.anchorColumn = anchorColumn;
     }
+
+    public int rotationCount() {return currentPieceType.getRotationCount();}
+
 }

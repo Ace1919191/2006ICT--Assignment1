@@ -12,58 +12,60 @@ public enum PieceType {
             {0, 0},
             {0, 1},
             {0, 2}
-    }, "cyan", true),
+    }, "cyan", true, 2),
 
     O(new int[][]{
             {0, 0},
             {0, 1},
             {1, 0},
             {1, 1}
-    }, "yellow", false),
+    }, "yellow", false, 1),
 
     T(new int[][]{
             {0, -1},
             {0, 0},
             {0, 1},
             {1, 0}
-    }, "purple", true),
+    }, "purple", true,4),
 
     L(new int[][]{
             {-1, 1},
             {0, -1},
             {0, 0},
             {0, 1}
-    }, "orange", true),
+    }, "orange", true, 4),
 
     J(new int[][]{
             {-1, -1},
             {0, -1},
             {0, 0},
             {0, 1}
-    }, "blue", true),
+    }, "blue", true, 4),
 
     S(new int[][]{
             {0, 0},
             {0, 1},
             {1, -1},
             {1, 0}
-    }, "green", true),
+    }, "green", true, 2),
 
     Z(new int[][]{
             {0, -1},
             {0, 0},
             {1, 0},
             {1, 1}
-    }, "red", true);
+    }, "red", true, 2);
 
     private final int[][] shape;
     private final String colour;
     private final boolean rotatable;
+    private final int rotationCount;
 
-    PieceType(int[][] shape, String colour, boolean rotatable) {
+    PieceType(int[][] shape, String colour, boolean rotatable, int rotationCount) {
         this.shape = shape;
         this.colour = colour;
         this.rotatable = rotatable;
+        this.rotationCount = rotationCount;
     }
 
     public int[][] createShape() {
@@ -84,4 +86,5 @@ public enum PieceType {
     public boolean isRotatable() {
         return rotatable;
     }
+    public int getRotationCount() {return rotationCount; }
 }

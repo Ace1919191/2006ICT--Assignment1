@@ -56,6 +56,7 @@ public class GameBoard {
     }
 
 
+
     // Checking if piece can exist at specified anchor position
     // Checking if current piece can exist at specified anchor position
     public boolean canPlacePiece(

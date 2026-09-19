@@ -48,6 +48,14 @@ public class GameBoard {
         }
     }
 
+    //Made public so it can be used in BoardEvaluator
+    public int width() { return fieldWidth; }
+    public int height() { return fieldHeight; }
+    public int cell(int row, int col) {
+        return lockedBlocks[row][col] == null ? 0 : 1;
+    }
+
+
     // Checking if piece can exist at specified anchor position
     // Checking if current piece can exist at specified anchor position
     public boolean canPlacePiece(

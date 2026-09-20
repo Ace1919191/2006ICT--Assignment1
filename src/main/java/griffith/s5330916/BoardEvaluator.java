@@ -3,7 +3,7 @@ package griffith.s5330916;
 public final class BoardEvaluator {
     private final int holePenalty;
 
-    public BoardEvaluator() { this(5); }
+    public BoardEvaluator() { this(40); }
 
     public BoardEvaluator(int holePenalty) {
         if (holePenalty < 0) { throw new IllegalArgumentException("Use a non-negative penalty"); }
@@ -63,9 +63,9 @@ public final class BoardEvaluator {
 
     public int evaluate(GameBoard after, int linesCleared) {
 
-        return 3 * linesCleared
-                - 4 * maximumHeight(after)
-                - 2 * bumpiness(after)
+        return 100 * linesCleared
+                - 10 * maximumHeight(after)
+                - 5 * bumpiness(after)
                 - holePenalty * holes(after);
 
     }

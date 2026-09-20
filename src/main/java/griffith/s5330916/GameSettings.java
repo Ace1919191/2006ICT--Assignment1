@@ -17,15 +17,18 @@ public final class GameSettings {
     private static final int DEFAULT_FIELD_HEIGHT = 20;
     private static final int DEFAULT_FIELD_WIDTH = 10;
     private static final boolean DEFAULT_TWO_PLAYER_MODE = true;
+    private static final boolean DEFAULT_AI_PLAYER = false;
 
     private final int fieldHeight;
     private final int fieldWidth;
     private final boolean twoPlayerMode;
+    private final boolean aiPlayer;
 
-    private GameSettings(int fieldHeight, int fieldWidth, boolean twoPlayerMode) {
+    private GameSettings(int fieldHeight, int fieldWidth, boolean twoPlayerMode, boolean aiPlayer) {
         this.fieldHeight = fieldHeight;
         this.fieldWidth = fieldWidth;
         this.twoPlayerMode = twoPlayerMode;
+        this.aiPlayer = aiPlayer;
     }
 
     public static GameSettings load() {
@@ -34,8 +37,8 @@ public final class GameSettings {
         int fieldHeight = getInt(json, "fieldLength", DEFAULT_FIELD_HEIGHT);
         int fieldWidth = getInt(json, "fieldWidth", DEFAULT_FIELD_WIDTH);
         boolean twoPlayerMode = getBoolean(json, "twoPlayerMode", DEFAULT_TWO_PLAYER_MODE);
-
-        return new GameSettings(fieldHeight, fieldWidth, twoPlayerMode);
+        boolean aiPlayer = getBoolean(json, "aiPlayer", DEFAULT_AI_PLAYER);
+        return new GameSettings(fieldHeight, fieldWidth, twoPlayerMode, aiPlayer);
     }
 
     public int getFieldHeight() {
@@ -50,6 +53,11 @@ public final class GameSettings {
     public boolean isTwoPlayerMode() {
         return twoPlayerMode;
     }
+
+    public boolean isAiPlayer() {
+        return aiPlayer;
+    }
+
 
     private static String readSettingsFile() {
         try {

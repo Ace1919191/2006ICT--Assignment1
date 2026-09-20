@@ -93,15 +93,17 @@ public final class TetrisAI {
             }
             int shapeWidth = (maxCol - minCol) + 1;
 
-            for (int col = 0; col <= board.width() - shapeWidth; col++) {
-                rotated.setAnchorColumn(col);
+            for (int leftCol = 0; leftCol <= board.width() - shapeWidth; leftCol++) {
+                int anchorCol = leftCol - minCol;
+                rotated.setAnchorColumn(anchorCol);
 
-                Placement result  = simulateDrop(board, rotated);
-                if (result == null) {
-                    continue;
+                if (!board.canPlacePiece(rotated.getAnchorRow(), anchorCol, rotated.getCurrentPieceShape())) {
+                    continue; // starting spot itself isn't valid, skip it
                 }
+
+                Placement result = simulateDrop(board, rotated);
                 int score = evaluator.evaluate(result.board(), result.linesCleared());
-                moves.add(new Move(col, rotation, score));
+                moves.add(new Move(anchorCol, rotation, score));
             }
 
         }

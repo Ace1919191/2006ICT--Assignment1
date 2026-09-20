@@ -21,6 +21,7 @@ public class Game {
 
     // Whether this match is being played with one board or two boards side by side
     private boolean twoPlayerMode;
+    private boolean aiPlayer;
 
     // Each player runs on their own independent board.
     // playerTwo stays null for the entire match when running in single player mode.
@@ -48,6 +49,7 @@ public class Game {
         // Creating Game Screen Object and displaying it
         Game game = new Game(stage, onBack);
         game.showGame();
+
     }
 
     private void showGame() {
@@ -56,6 +58,7 @@ public class Game {
         int fieldHeight = settings.getFieldHeight();
         int fieldWidth = settings.getFieldWidth();
         twoPlayerMode = settings.isTwoPlayerMode();
+        aiPlayer = settings.isAiPlayer();
 
         // Creating title for Game Screen, reflecting the selected player count
         Label titleLabel = new Label(twoPlayerMode ? "Tetris - 2 Player" : "Tetris - 1 Player");
@@ -76,6 +79,11 @@ public class Game {
         if (twoPlayerMode) {
             playerTwo = new PlayerBoard("Player 2 (Arrow Keys)", fieldHeight, fieldWidth,
                     () -> handlePlayerGameOver(false), pieceSequence);
+
+            if (aiPlayer) {
+                playerTwo.setAiPlayer(true);
+            }
+
             boardsLayout = new HBox(60, playerOne.getView(), playerTwo.getView());
         } else {
             playerTwo = null;
@@ -175,16 +183,24 @@ public class Game {
                 // Player 2 controls in Two Player Mode; fall back to controlling
                 // Player 1 in Single Player Mode so Arrow Keys also work.
                 case LEFT:
-                    (twoPlayerMode ? playerTwo : playerOne).moveLeft();
+                    if (!aiPlayer) {
+                        (twoPlayerMode ? playerTwo : playerOne).moveLeft();
+                    }
                     break;
                 case RIGHT:
-                    (twoPlayerMode ? playerTwo : playerOne).moveRight();
+                    if (!aiPlayer) {
+                        (twoPlayerMode ? playerTwo : playerOne).moveRight();
+                    }
                     break;
                 case UP:
-                    (twoPlayerMode ? playerTwo : playerOne).rotate();
+                    if (!aiPlayer) {
+                        (twoPlayerMode ? playerTwo : playerOne).rotate();
+                    }
                     break;
                 case DOWN:
-                    (twoPlayerMode ? playerTwo : playerOne).setSoftDrop(true);
+                    if (!aiPlayer) {
+                        (twoPlayerMode ? playerTwo : playerOne).setSoftDrop(true);
+                    }
                     break;
 
                 // Pausing or resuming the board(s) together

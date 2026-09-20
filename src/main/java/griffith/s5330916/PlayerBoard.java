@@ -31,6 +31,10 @@ public class PlayerBoard {
     private final int fieldHeight;
     private final int fieldWidth;
 
+    private boolean aiPlayer = false;
+    private Move pendingAIMove;
+    private boolean aiRotationComplete = false;
+
     // Called once when this player's board tops out
     private final Runnable onGameOver;
 
@@ -152,6 +156,36 @@ public class PlayerBoard {
         fallTimer.setCycleCount(Animation.INDEFINITE);
     }
 
+    public void setAiPlayer(boolean aiPlayer) {
+        this.aiPlayer = aiPlayer;
+    }
+
+    private void applyAIMove() {
+        ActivePiece piece = pieceController.getCurrentPiece();
+
+        if (!aiRotationComplete) {
+            for (int i = 0; i < pendingAIMove.rotations(); i++) {
+                pieceController.rotatePiece();
+            }
+            updateFallingPieceShape();
+            aiRotationComplete = true;
+        }
+        int targetCol = pendingAIMove.column();
+        int currentCol = piece.getAnchorColumn();
+
+        if (currentCol < targetCol) {
+            pieceController.movePieceHorizontal(1);
+        } else if (currentCol > targetCol) {
+            pieceController.movePieceHorizontal(-1);
+        }
+
+        fallingPieceGroup.setTranslateX(piece.getAnchorColumn() * cellSize);
+        fallingPieceGroup.setTranslateY(piece.getAnchorRow() * cellSize);
+
+        animateHorizontalMovement();
+    }
+
+
     // Returning the assembled view so Game.java can place it in the layout
     public VBox getView() {
         return view;
@@ -259,6 +293,14 @@ public class PlayerBoard {
         ActivePiece currentPiece = new ActivePiece(currentPieceType, anchorRow, anchorColumn);
         pieceController.setCurrentPiece(currentPiece);
 
+        if (aiPlayer) {
+            TetrisAI ai = new TetrisAI(new BoardEvaluator());
+            pendingAIMove= ai.findBestMove(gameBoard, currentPiece);
+            aiRotationComplete = false;
+        }
+
+
+
         // Ending this player's game if new piece cannot fit onto grid
         if (!gameBoard.canPlacePiece(currentPiece, anchorRow, anchorColumn)) {
             fallTimer.stop();
@@ -291,6 +333,11 @@ public class PlayerBoard {
         if (paused) {
             return;
         }
+
+        if (aiPlayer && pendingAIMove != null) {
+            applyAIMove();
+        }
+
         // Moving piece if next position is available
         if (pieceController.movePieceDown()) {
             animateVerticalMovement();
@@ -305,6 +352,7 @@ public class PlayerBoard {
             // Spawning another random piece
             spawnPiece();
         }
+
     }
 
     // Moving current piece left or right

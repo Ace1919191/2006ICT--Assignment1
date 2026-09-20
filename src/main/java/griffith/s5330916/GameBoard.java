@@ -36,6 +36,7 @@ public class GameBoard {
         return true;
     }
 
+
     // Removing completed row and moving all rows above down by one
     private void removeRow(int completedRow) {
         // Moving every row above the completed row down one position

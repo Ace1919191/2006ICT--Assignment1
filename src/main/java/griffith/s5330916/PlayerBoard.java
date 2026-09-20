@@ -280,6 +280,9 @@ public class PlayerBoard {
         fallingPieceGroup.setTranslateY(anchorRow * cellSize);
 
         renderGrid();
+
+
+
     }
 
     // Moving current piece down one grid space

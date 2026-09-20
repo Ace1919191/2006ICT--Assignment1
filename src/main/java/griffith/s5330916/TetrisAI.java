@@ -108,4 +108,20 @@ public final class TetrisAI {
         return moves;
 
     }
+
+
+    public Move findBestMove(GameBoard board, ActivePiece piece) {
+        Move best = null;
+        for (Move candidate : legalMoves(board, piece)) {
+            if (best == null || candidate.value() > best.value()) {
+                best = candidate;
+
+            }
+        }
+
+        return best;
+
+    }
 }
+
+

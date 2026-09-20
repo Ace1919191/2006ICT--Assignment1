@@ -183,6 +183,12 @@ public class PlayerBoard {
         fallingPieceGroup.setTranslateY(piece.getAnchorRow() * cellSize);
 
         animateHorizontalMovement();
+
+        //fast drop
+        if (piece.getAnchorColumn() == targetCol) {
+            fallTimer.setRate(10);
+        }
+
     }
 
 

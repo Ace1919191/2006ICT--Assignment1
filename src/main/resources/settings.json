@@ -4,7 +4,7 @@
   "level": 1,
   "music": true,
   "soundEffects": true,
-  "aiPlayer": false,
+  "aiPlayer": true,
   "extendedMode": false,
   "twoPlayerMode": true
 }

@@ -98,7 +98,7 @@ public final class TetrisAI {
                 rotated.setAnchorColumn(anchorCol);
 
                 if (!board.canPlacePiece(rotated.getAnchorRow(), anchorCol, rotated.getCurrentPieceShape())) {
-                    continue; // starting spot itself isn't valid, skip it
+                    continue;
                 }
 
                 Placement result = simulateDrop(board, rotated);

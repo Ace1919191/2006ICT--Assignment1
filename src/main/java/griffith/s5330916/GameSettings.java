@@ -9,10 +9,11 @@ import java.util.regex.Pattern;
 
 /**
  * Loads the Tetris board dimensions and player-count setting from settings.json.
+ *
+ * The AI setting is intentionally not used yet.
  */
 public final class GameSettings {
-    private static final Path SETTINGS_FILE =
-            Paths.get("src", "main", "resources", "settings.json");
+    private static final Path SETTINGS_FILE = Paths.get("src", "main", "resources", "settings.json");
 
     private static final int DEFAULT_FIELD_HEIGHT = 20;
     private static final int DEFAULT_FIELD_WIDTH = 10;
@@ -38,18 +39,9 @@ public final class GameSettings {
         return new GameSettings(fieldHeight, fieldWidth, twoPlayerMode);
     }
 
-    public int getFieldHeight() {
-        return fieldHeight;
-    }
-
-    public int getFieldWidth() {
-        return fieldWidth;
-    }
-
-    // Whether the game should be played as 2 players (side by side) or a single player
-    public boolean isTwoPlayerMode() {
-        return twoPlayerMode;
-    }
+    public int getFieldHeight() { return fieldHeight; }
+    public int getFieldWidth() { return fieldWidth; }
+    public boolean isTwoPlayerMode() { return twoPlayerMode; }
 
     private static String readSettingsFile() {
         try {
@@ -67,7 +59,6 @@ public final class GameSettings {
         if (matcher.find()) {
             return Integer.parseInt(matcher.group(1));
         }
-
         return defaultValue;
     }
 
@@ -78,7 +69,6 @@ public final class GameSettings {
         if (matcher.find()) {
             return Boolean.parseBoolean(matcher.group(1));
         }
-
         return defaultValue;
     }
 }

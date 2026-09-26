@@ -17,6 +17,8 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 
 import java.net.URL;
+import javafx.scene.media.Media;
+import javafx.scene.media.MediaPlayer;
 
 // The Main Class inherits the Application Object type from JavaFX
 public class Main extends Application {
@@ -28,6 +30,7 @@ public class Main extends Application {
         String xVariable = "Idk yet";
         showSplashScreen(splashStage, () -> showMainWindow(initialStage));
     }
+    private MediaPlayer menuMusic;
 
     private void showSplashScreen(Stage stage, Runnable onFinished) {
         // Get JPG from resources
@@ -94,6 +97,20 @@ public class Main extends Application {
     private void showMainWindow(Stage stage) {
         stage.setTitle("Tetris");
 
+        // Load the menu music once, then play it whenever the main menu opens
+        if (menuMusic == null) {
+            String musicPath = getClass().getResource("/audio/menu.wav").toExternalForm();
+            menuMusic = new MediaPlayer(new Media(musicPath));
+            menuMusic.setCycleCount(MediaPlayer.INDEFINITE);
+            menuMusic.setVolume(0.25);
+        }
+        menuMusic.play();
+        if (GameSettings.load().isMusicEnabled()) {
+            menuMusic.play();
+        } else {
+            menuMusic.pause();
+        }
+
         //VBox (Vertical Box) is I assume JavaFX window and we modify the menuLayout
         VBox menuLayout = new VBox(20);
         menuLayout.setAlignment(Pos.CENTER);
@@ -114,7 +131,10 @@ public class Main extends Application {
         exitButton.setStyle(menuButtonStyle);
 
         // Defining function calls on button press
-        playButton.setOnAction(ignored -> Game.show(stage, () -> showMainWindow(stage)));
+        playButton.setOnAction(ignored -> {
+            menuMusic.stop();
+            Game.show(stage, () -> showMainWindow(stage));
+        });
         scoresButton.setOnAction(ignored -> HighScores.show(stage, () -> showMainWindow(stage)));
         settingsButton.setOnAction(ignored -> Settings.show(stage, () -> showMainWindow(stage)));
         exitButton.setOnAction(ignored -> {

@@ -13,11 +13,29 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import javafx.scene.media.Media;
+import javafx.scene.media.MediaPlayer;
+import javafx.scene.media.AudioClip;
 
 public class Game {
 
     private final Stage stage;
     private final Runnable onBack;
+    private MediaPlayer gameMusic;
+    private boolean musicEnabled;
+    private boolean soundEffectsEnabled;
+    private static final AudioClip GAME_OVER_SOUND = new AudioClip(
+            Game.class.getResource("/audio/gameover.wav").toExternalForm()
+    );
+    private Label overallStatusLabel;
+    private Label audioStatusLabel;
+
+    // Show the current audio settings and their keyboard shortcuts.
+    private void updateAudioStatus() {
+        audioStatusLabel.setText(
+                "Music [M]: " + (musicEnabled ? "On" : "Off")
+                        + "    Sound [S]: " + (soundEffectsEnabled ? "On" : "Off"));
+    }
 
     // Whether this match is being played with one board or two boards side by side
     private boolean twoPlayerMode;
@@ -36,8 +54,6 @@ public class Game {
     // whichever player is still alive in Two Player Mode
     private boolean playerOneEnded = false;
     private boolean playerTwoEnded = false;
-
-    private Label overallStatusLabel;
 
     public Game(Stage stage, Runnable onBack) {
         this.stage = stage;
@@ -147,7 +163,11 @@ public class Game {
         gameLayout.setAlignment(Pos.CENTER);
         gameLayout.setPadding(new Insets(20));
         gameLayout.setStyle("-fx-background-color: black;");
-        gameLayout.getChildren().addAll(titleLabel, boardsLayout, bottomLayout);
+        audioStatusLabel = new Label();
+        audioStatusLabel.setStyle("-fx-text-fill: yellow; -fx-font-size: 14px;");
+
+        gameLayout.getChildren().addAll(
+                titleLabel, boardsLayout, audioStatusLabel, bottomLayout);
 
         // Creating Scene for Game Screen. A single board needs less width than two.
         double sceneWidth = twoPlayerMode ? 1000 : 550;
@@ -168,7 +188,7 @@ public class Game {
                 case W:
                     playerOne.rotate();
                     break;
-                case S:
+                case Z:
                     playerOne.setSoftDrop(true);
                     break;
 
@@ -186,7 +206,24 @@ public class Game {
                 case DOWN:
                     (twoPlayerMode ? playerTwo : playerOne).setSoftDrop(true);
                     break;
+                case S:
+                    soundEffectsEnabled = !soundEffectsEnabled;
+                    PlayerBoard.setSoundEffectsEnabled(soundEffectsEnabled);
+                    updateAudioStatus();
+                    break;
+                case M:
+                    musicEnabled = !musicEnabled;
 
+                    if (gameMusic != null) {
+                        if (musicEnabled && !paused && !roundEnded) {
+                            gameMusic.play();
+                        } else {
+                            gameMusic.pause();
+                        }
+                    }
+
+                    updateAudioStatus();
+                    break;
                 // Pausing or resuming the board(s) together
                 case P:
                     togglePauseAll();
@@ -201,7 +238,7 @@ public class Game {
         // Detecting when a soft drop key is released
         gameScene.addEventFilter(KeyEvent.KEY_RELEASED, event -> {
             switch (event.getCode()) {
-                case S:
+                case Z:
                     playerOne.setSoftDrop(false);
                     break;
                 case DOWN:
@@ -215,6 +252,19 @@ public class Game {
 
         // Rendering Game Scene onto existing Stage
         stage.setScene(gameScene);
+        // Play the gameplay music on a loop
+        String musicPath = getClass().getResource("/audio/game.mp3").toExternalForm();
+
+        gameMusic = new MediaPlayer(new Media(musicPath));
+        gameMusic.setCycleCount(MediaPlayer.INDEFINITE);
+        gameMusic.setVolume(0.25);
+        musicEnabled = settings.isMusicEnabled();
+        soundEffectsEnabled = settings.isSoundEffectsEnabled();
+        updateAudioStatus();
+        PlayerBoard.setSoundEffectsEnabled(soundEffectsEnabled);
+        if (musicEnabled) {
+            gameMusic.play();
+        }
 
         // Starting the board(s) at the same time
         playerOne.start();
@@ -244,6 +294,7 @@ public class Game {
         if (twoPlayerMode) {
             playerTwo.pause();
         }
+        gameMusic.pause();
     }
 
     private void resumeAll() {
@@ -252,12 +303,20 @@ public class Game {
         if (twoPlayerMode) {
             playerTwo.resume();
         }
+        if (musicEnabled) {
+            gameMusic.play();
+        }
     }
 
     private void stopAll() {
         playerOne.stop();
         if (twoPlayerMode) {
             playerTwo.stop();
+        }
+        if (gameMusic != null) {
+            gameMusic.stop();
+            gameMusic.dispose();
+            gameMusic = null;
         }
     }
 
@@ -282,17 +341,28 @@ public class Game {
             playerTwoEnded = true;
         }
 
+        // End a single-player game immediately.
         if (!twoPlayerMode) {
             roundEnded = true;
             stopAll();
-            overallStatusLabel.setText("Game Over - Score: " + playerOne.getScore());
+
+            if (soundEffectsEnabled) {
+                GAME_OVER_SOUND.play();
+            }
+
+            overallStatusLabel.setText(
+                    "Game Over - Score: " + playerOne.getScore());
             return;
         }
 
+        // End a two-player game when both players have topped out.
         if (playerOneEnded && playerTwoEnded) {
-            // Both players have topped out, so the match is decided
             roundEnded = true;
             stopAll();
+
+            if (soundEffectsEnabled) {
+                GAME_OVER_SOUND.play();
+            }
 
             int scoreOne = playerOne.getScore();
             int scoreTwo = playerTwo.getScore();
@@ -305,10 +375,10 @@ public class Game {
                 overallStatusLabel.setText("Game Over - It's a Tie!");
             }
         } else {
-            // Only one player has topped out so far - let the match continue
-            // for whichever player is still alive
+            // Allow the remaining player to continue.
             String toppedOutName = isPlayerOne ? "Player 1" : "Player 2";
-            overallStatusLabel.setText(toppedOutName + " topped out - game continues");
+            overallStatusLabel.setText(
+                    toppedOutName + " topped out - game continues");
         }
     }
 }

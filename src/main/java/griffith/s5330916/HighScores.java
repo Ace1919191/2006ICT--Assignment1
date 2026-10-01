@@ -198,23 +198,6 @@ public class HighScores {
         }
     }
 
-        String initials = result.get().trim().toUpperCase();
-
-        if (!initials.matches("[A-Za-z]{3}")) {
-            // Invalid input - inform the player and prompt again
-            Alert alert = new Alert(Alert.AlertType.WARNING,
-                    "Please enter exactly 3 letters (e.g. ABC).", ButtonType.OK);
-            alert.showAndWait();
-            promptForNewScore(stage, score, onComplete);
-            return;
-        }
-
-        addScore(initials, score);
-
-        if (onComplete != null) {
-            onComplete.run();
-        }
-    }
 
     /**
      * Adds a new score, re-sorts, truncates to the top MAX_SCORES entries,

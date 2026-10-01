@@ -17,6 +17,8 @@ import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
 import javafx.scene.media.AudioClip;
 
+import java.net.URL;
+
 public class Game {
 
     private final Stage stage;
@@ -253,7 +255,7 @@ public class Game {
         // Rendering Game Scene onto existing Stage
         stage.setScene(gameScene);
         // Play the gameplay music on a loop
-        String musicPath = getClass().getResource("/audio/game.mp3").toExternalForm();
+        String musicPath = getClass().getResource("/audio/game.wav").toExternalForm();
 
         gameMusic = new MediaPlayer(new Media(musicPath));
         gameMusic.setCycleCount(MediaPlayer.INDEFINITE);

@@ -317,7 +317,10 @@ public class PlayerBoard {
 
             // Checking for completed rows and adding score
             int linesCleared = gameBoard.clearFullRows();
-            addScore(linesCleared);
+
+            if (linesCleared > 0) {
+                addScore(linesCleared);
+            }
 
             // Spawning another random piece
             spawnPiece();

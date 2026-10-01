@@ -20,6 +20,26 @@ public final class TetrisClient {
 
     private TetrisClient() { }
 
+    public static void resetServer() throws IOException {
+        try (Socket socket = new Socket()) {
+            socket.connect(
+                    new InetSocketAddress(SERVER_HOST, SERVER_PORT),
+                    CONNECT_TIMEOUT_MS
+            );
+            socket.setSoTimeout(READ_TIMEOUT_MS);
+
+            try (PrintWriter out = new PrintWriter(new OutputStreamWriter(socket.getOutputStream()), true);
+                 BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
+
+                out.println("RESET");
+                String response = in.readLine();
+
+                if (!"OK".equals(response)) {throw new IOException("TetrisServer did not acknowledge reset.");
+                }
+            }
+        }
+    }
+
     // The server closes the socket after every response, so each call creates a new connection
     public static OpMove requestMove(PureGame game) throws IOException {
         try (Socket socket = new Socket()) {

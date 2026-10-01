@@ -218,6 +218,19 @@ public class Game {
         }
     }
 
+    private void resetServer() {
+        Thread resetThread = new Thread(() -> {
+            try {
+                TetrisClient.resetServer();
+            } catch (Exception e) {
+                System.err.println("[CLIENT] Could not reset TetrisServer: " + e.getMessage());
+            }
+        }, "TetrisServerReset");
+
+        resetThread.setDaemon(true);
+        resetThread.start();
+    }
+
     private void handlePlayerGameOver(boolean isPlayerOne) {
         if (roundEnded) {
             return;
@@ -238,6 +251,7 @@ public class Game {
         if (!twoPlayerMode) {
             roundEnded = true;
             stopAll();
+            resetServer();
             overallStatusLabel.setText("Game Over - Score: " + playerOne.getScore());
             return;
         }
@@ -245,6 +259,7 @@ public class Game {
         if (playerOneEnded && playerTwoEnded) {
             roundEnded = true;
             stopAll();
+            resetServer();
 
             int scoreOne = playerOne.getScore();
             int scoreTwo = playerTwo.getScore();

@@ -96,9 +96,18 @@ public final class TetrisServer {
         }
     }
 
+    private static void resetServerState() {
+        log("Resetting server state...");
+        if (SHOW_SERVER_WINDOW && serverGameWindow != null) {
+            Platform.runLater(serverGameWindow::reset);
+        }
+    }
+
     private static void handleClient(Socket client) throws IOException {
-        try (BufferedReader in = new BufferedReader(new InputStreamReader(client.getInputStream()));
-             PrintWriter out = new PrintWriter(new OutputStreamWriter(client.getOutputStream()), true)) {
+        try (BufferedReader in = new BufferedReader(
+                new InputStreamReader(client.getInputStream()));
+             PrintWriter out = new PrintWriter(
+                     new OutputStreamWriter(client.getOutputStream()), true)) {
 
             String requestJson = in.readLine();
 
@@ -106,12 +115,18 @@ public final class TetrisServer {
                 return;
             }
 
+            // Special command used when a game/round has finished.
+            if ("RESET".equals(requestJson)) {
+                resetServerState();
+                out.println("OK");
+                return;
+            }
+
             PureGame game = MAPPER.readValue(requestJson, PureGame.class);
             String source = normaliseSource(game.getSource());
 
             if (VERBOSE_STATE_LOGGING) {
-                log(source + " state -> row=" + game.getAnchorRow()
-                        + ", column=" + game.getAnchorColumn());
+                log(source + " state -> row=" + game.getAnchorRow() + ", column=" + game.getAnchorColumn());
             }
 
             OpMove move = findOptimalMove(game);
@@ -119,7 +134,6 @@ public final class TetrisServer {
             if (SHOW_SERVER_WINDOW && serverGameWindow != null) {
                 Platform.runLater(() -> serverGameWindow.updateGame(game, move));
             }
-
             out.println(MAPPER.writeValueAsString(move));
         }
     }
@@ -362,6 +376,12 @@ public final class TetrisServer {
         private final Stage stage;
         private final HBox boardsContainer = new HBox(30);
         private final Map<String, BoardView> boardViews = new LinkedHashMap<>();
+
+        private void reset() {
+            boardViews.clear();
+            boardsContainer.getChildren().clear();
+            log("Server state reset.");
+        }
 
         private ServerGameWindow() {
             stage = new Stage();

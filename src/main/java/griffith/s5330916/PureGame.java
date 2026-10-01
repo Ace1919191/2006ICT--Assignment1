@@ -1,11 +1,5 @@
 package griffith.s5330916;
 
-/**
- * Snapshot sent from a local Tetris board to TetrisServer.
- *
- * Piece shapes use this project's native format:
- * each entry is {rowOffset, columnOffset} from the piece anchor.
- */
 public class PureGame {
     private String source;
     private int width;

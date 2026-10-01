@@ -13,6 +13,8 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
 
 public class Game {
 
@@ -38,6 +40,7 @@ public class Game {
     private boolean playerTwoEnded = false;
 
     private Label overallStatusLabel;
+    private VBox nameEntryBox;
 
     public Game(Stage stage, Runnable onBack) {
         this.stage = stage;
@@ -142,12 +145,23 @@ public class Game {
         bottomLayout.setPadding(new Insets(0, 20, 0, 20));
         bottomLayout.setMaxWidth(Double.MAX_VALUE);
 
+
+        // Area for entering the player's name after Game Over
+        nameEntryBox = new VBox(10);
+        nameEntryBox.setAlignment(Pos.CENTER);
+
+
         // VBox holds the Game Screen vertically
         VBox gameLayout = new VBox(20);
         gameLayout.setAlignment(Pos.CENTER);
         gameLayout.setPadding(new Insets(20));
         gameLayout.setStyle("-fx-background-color: black;");
-        gameLayout.getChildren().addAll(titleLabel, boardsLayout, bottomLayout);
+        gameLayout.getChildren().addAll(
+                titleLabel,
+                boardsLayout,
+                nameEntryBox,
+                bottomLayout
+        );
 
         // Creating Scene for Game Screen. A single board needs less width than two.
         double sceneWidth = twoPlayerMode ? 1000 : 550;
@@ -266,6 +280,7 @@ public class Game {
     // playing until they also top out, then the match ends and the higher
     // score wins.
     private void handlePlayerGameOver(boolean isPlayerOne) {
+
         if (roundEnded) {
             return;
         }
@@ -274,31 +289,40 @@ public class Game {
             if (playerOneEnded) {
                 return;
             }
+
             playerOneEnded = true;
+
         } else {
             if (playerTwoEnded) {
                 return;
             }
+
             playerTwoEnded = true;
         }
 
+        // SINGLE PLAYER GAME OVER
         if (!twoPlayerMode) {
+
             roundEnded = true;
             stopAll();
 
             int finalScore = playerOne.getScore();
-            overallStatusLabel.setText("Game Over - Score: " + finalScore);
 
-            // Checking whether this run cracks the top 10, and if so, prompting
-            // the player for their initials before saving it to scores.json
+            overallStatusLabel.setText(
+                    "Game Over - Score: " + finalScore
+            );
+
+            // If the score qualifies for the top 10, ask for the player's name
             if (HighScores.isHighScore(finalScore)) {
-                HighScores.promptForNewScore(stage, finalScore, () -> HighScores.show(stage, onBack));
+                showNameEntry(finalScore);
             }
+
             return;
         }
 
+        // TWO PLAYER GAME OVER
         if (playerOneEnded && playerTwoEnded) {
-            // Both players have topped out, so the match is decided
+
             roundEnded = true;
             stopAll();
 
@@ -306,29 +330,121 @@ public class Game {
             int scoreTwo = playerTwo.getScore();
 
             if (scoreOne > scoreTwo) {
-                overallStatusLabel.setText("Game Over - Player 1 Wins!");
+
+                overallStatusLabel.setText(
+                        "Game Over - Player 1 Wins!"
+                );
+
             } else if (scoreTwo > scoreOne) {
-                overallStatusLabel.setText("Game Over - Player 2 Wins!");
+
+                overallStatusLabel.setText(
+                        "Game Over - Player 2 Wins!"
+                );
+
             } else {
-                overallStatusLabel.setText("Game Over - It's a Tie!");
+
+                overallStatusLabel.setText(
+                        "Game Over - It's a Tie!"
+                );
             }
 
-            // In Two Player Mode either (or both) player's score may qualify
-            // for the top 10, so each is checked and prompted independently
+            // Check both scores for the top 10
             checkAndRecordHighScore(scoreOne);
             checkAndRecordHighScore(scoreTwo);
+
         } else {
-            // Only one player has topped out so far - let the match continue
-            // for whichever player is still alive
-            String toppedOutName = isPlayerOne ? "Player 1" : "Player 2";
-            overallStatusLabel.setText(toppedOutName + " topped out - game continues");
+
+            // One player is out but the other continues
+            String toppedOutName =
+                    isPlayerOne ? "Player 1" : "Player 2";
+
+            overallStatusLabel.setText(
+                    toppedOutName +
+                            " topped out - game continues"
+            );
         }
     }
 
-    // Prompts for and records a score only if it actually qualifies for the top 10
     private void checkAndRecordHighScore(int score) {
         if (HighScores.isHighScore(score)) {
-            HighScores.promptForNewScore(stage, score, () -> HighScores.show(stage, onBack));
+            showNameEntry(score);
         }
+    }
+
+
+    private void showNameEntry(int finalScore) {
+
+        // Clear any previous name-entry controls
+        nameEntryBox.getChildren().clear();
+
+        Label scoreMessage = new Label(
+                "Your score is " + finalScore
+        );
+
+        scoreMessage.setStyle(
+                "-fx-text-fill: yellow;" +
+                        "-fx-font-size: 18px;" +
+                        "-fx-font-weight: bold;"
+        );
+
+        Label nameMessage = new Label(
+                "Please enter your name (3 letters):"
+        );
+
+        nameMessage.setStyle(
+                "-fx-text-fill: white;" +
+                        "-fx-font-size: 14px;"
+        );
+
+        TextField nameField = new TextField();
+        nameField.setPromptText("ABC");
+        nameField.setMaxWidth(100);
+
+        Button saveButton = new Button("Save Score");
+
+        saveButton.setStyle(
+                "-fx-background-color: #555;" +
+                        "-fx-text-fill: yellow;" +
+                        "-fx-font-size: 14px;"
+        );
+
+        Label errorLabel = new Label("");
+        errorLabel.setStyle("-fx-text-fill: red;");
+
+        saveButton.setOnAction(event -> {
+
+            String playerName =
+                    nameField.getText().trim().toUpperCase();
+
+            // Must be exactly 3 letters
+            if (!playerName.matches("[A-Z]{3}")) {
+
+                errorLabel.setText(
+                        "Please enter exactly 3 letters."
+                );
+
+                return;
+            }
+
+            // Save the player's name and final score
+            HighScores.addScore(
+                    playerName,
+                    finalScore
+            );
+
+            // Show updated high scores
+            HighScores.show(
+                    stage,
+                    onBack
+            );
+        });
+
+        nameEntryBox.getChildren().addAll(
+                scoreMessage,
+                nameMessage,
+                nameField,
+                saveButton,
+                errorLabel
+        );
     }
 }

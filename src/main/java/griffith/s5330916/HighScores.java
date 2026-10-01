@@ -8,7 +8,6 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
-import javafx.scene.control.TextInputDialog;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
@@ -147,63 +146,10 @@ public class HighScores {
     }
 
     /**
-     * Prompts the player for a 3-letter identifier and records their score,
-     * then runs onComplete (e.g. to refresh or navigate to the High Scores screen).
-     * Re-prompts on invalid/blank input; does nothing if the player cancels.
-     */
-    public static void promptForNewScore(Stage stage, int score, Runnable onComplete) {
-
-        TextInputDialog dialog = new TextInputDialog();
-
-        dialog.setTitle("New High Score!");
-        dialog.setHeaderText("Your score is " + score + "!");
-        dialog.setContentText("Please enter your name (3 letters):");
-        dialog.initOwner(stage);
-
-        Optional<String> result = dialog.showAndWait();
-
-        // If player presses Cancel, do not save the score
-        if (result.isEmpty()) {
-            return;
-        }
-
-        // Remove spaces and convert the name to uppercase
-        String playerName = result.get().trim().toUpperCase();
-
-        // Player name must be exactly 3 letters
-        if (!playerName.matches("[A-Z]{3}")) {
-
-            Alert alert = new Alert(
-                    Alert.AlertType.WARNING,
-                    "Please enter exactly 3 letters, for example ABC.",
-                    ButtonType.OK
-            );
-
-            alert.setTitle("Invalid Name");
-            alert.setHeaderText(null);
-            alert.initOwner(stage);
-            alert.showAndWait();
-
-            // Ask the player again
-            promptForNewScore(stage, score, onComplete);
-            return;
-        }
-
-        // Save the player's name and score
-        addScore(playerName, score);
-
-        // Continue to the High Scores screen
-        if (onComplete != null) {
-            onComplete.run();
-        }
-    }
-
-
-    /**
      * Adds a new score, re-sorts, truncates to the top MAX_SCORES entries,
      * and persists the result to scores.json.
      */
-    private static void addScore(String player, int score) {
+    public static void addScore(String player, int score) {
         List<PlayerScore> scores = readScores();
         scores.add(new PlayerScore(player, score));
 

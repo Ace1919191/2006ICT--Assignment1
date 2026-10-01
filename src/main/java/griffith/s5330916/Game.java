@@ -285,7 +285,15 @@ public class Game {
         if (!twoPlayerMode) {
             roundEnded = true;
             stopAll();
-            overallStatusLabel.setText("Game Over - Score: " + playerOne.getScore());
+
+            int finalScore = playerOne.getScore();
+            overallStatusLabel.setText("Game Over - Score: " + finalScore);
+
+            // Checking whether this run cracks the top 10, and if so, prompting
+            // the player for their initials before saving it to scores.json
+            if (HighScores.isHighScore(finalScore)) {
+                HighScores.promptForNewScore(stage, finalScore, () -> HighScores.show(stage, onBack));
+            }
             return;
         }
 
@@ -304,11 +312,23 @@ public class Game {
             } else {
                 overallStatusLabel.setText("Game Over - It's a Tie!");
             }
+
+            // In Two Player Mode either (or both) player's score may qualify
+            // for the top 10, so each is checked and prompted independently
+            checkAndRecordHighScore(scoreOne);
+            checkAndRecordHighScore(scoreTwo);
         } else {
             // Only one player has topped out so far - let the match continue
             // for whichever player is still alive
             String toppedOutName = isPlayerOne ? "Player 1" : "Player 2";
             overallStatusLabel.setText(toppedOutName + " topped out - game continues");
+        }
+    }
+
+    // Prompts for and records a score only if it actually qualifies for the top 10
+    private void checkAndRecordHighScore(int score) {
+        if (HighScores.isHighScore(score)) {
+            HighScores.promptForNewScore(stage, score, () -> HighScores.show(stage, onBack));
         }
     }
 }

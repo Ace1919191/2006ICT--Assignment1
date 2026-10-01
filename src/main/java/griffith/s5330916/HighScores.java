@@ -4,10 +4,14 @@ import javafx.geometry.HPos;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextInputDialog;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import java.io.IOException;
@@ -16,6 +20,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -23,6 +28,13 @@ public class HighScores {
     // Defining location of scores JSON file
     private static final Path SCORES_FILE =
             Paths.get("src", "main", "resources", "scores.json");
+
+    // Maximum number of scores retained/displayed
+    private static final int MAX_SCORES = 10;
+
+    // Same button style used by Main Menu, reused for all buttons on this screen
+    private static final String MENU_BUTTON_STYLE =
+            "-fx-font-size: 20px; -fx-background-color: #555; -fx-text-fill: yellow;";
 
     public static void show(Stage stage, Runnable onBack) {
         // Reading and sorting scores from JSON file
@@ -70,7 +82,7 @@ public class HighScores {
         scoresGrid.add(scoreHeading, 2, 0);
 
         // Displaying maximum of ten highest scores
-        int scoresToDisplay = Math.min(10, scores.size());
+        int scoresToDisplay = Math.min(MAX_SCORES, scores.size());
 
         for (int i = 0; i < scoresToDisplay; i++) {
             PlayerScore playerScore = scores.get(i);
@@ -87,17 +99,23 @@ public class HighScores {
             GridPane.setHalignment(noScoresLabel, HPos.CENTER);
         }
 
+        // Creating Reset Button, which clears the top scores list
+        Button resetButton = new Button("Reset Scores");
+        resetButton.setStyle(MENU_BUTTON_STYLE);
+        resetButton.setPrefWidth(150);
+        resetButton.setOnAction(ignored -> confirmAndResetScores(stage, onBack));
+
         // Creating Back Button for High Scores Screen
         Button backButton = new Button("Back");
-
-        // Defining same button style used by Main Menu
-        String menuButtonStyle = "-fx-font-size: 20px; -fx-background-color: #555; -fx-text-fill: yellow;";
-
-        backButton.setStyle(menuButtonStyle);
+        backButton.setStyle(MENU_BUTTON_STYLE);
         backButton.setPrefWidth(150);
 
         // Returning user back to Main Menu
         backButton.setOnAction(ignored -> onBack.run());
+
+        // HBox places Reset and Back buttons side by side
+        HBox buttonRow = new HBox(20, resetButton, backButton);
+        buttonRow.setAlignment(Pos.CENTER);
 
         // VBox holds the High Scores Screen vertically
         VBox scoresLayout = new VBox(20);
@@ -105,7 +123,7 @@ public class HighScores {
         scoresLayout.setPadding(new Insets(20));
         scoresLayout.setStyle("-fx-background-color: black;");
 
-        scoresLayout.getChildren().addAll(titleLabel, scoresGrid, backButton);
+        scoresLayout.getChildren().addAll(titleLabel, scoresGrid, buttonRow);
 
         // Creating Scene and rendering it onto the existing Stage
         Scene scoresScene = new Scene(scoresLayout, 800, 600);
@@ -117,6 +135,88 @@ public class HighScores {
         Label label = new Label(text);
         label.setStyle("-fx-text-fill: yellow; -fx-font-size: 14px;");
         return label;
+    }
+
+    /**
+     * Checks whether the given score qualifies for the top-ten list.
+     * Called from the game-over screen once a round ends.
+     */
+    public static boolean isHighScore(int score) {
+        List<PlayerScore> scores = readScores();
+        return scores.size() < MAX_SCORES || score > scores.get(scores.size() - 1).score();
+    }
+
+    /**
+     * Prompts the player for a 3-letter identifier and records their score,
+     * then runs onComplete (e.g. to refresh or navigate to the High Scores screen).
+     * Re-prompts on invalid/blank input; does nothing if the player cancels.
+     */
+    public static void promptForNewScore(Stage stage, int score, Runnable onComplete) {
+        TextInputDialog dialog = new TextInputDialog();
+        dialog.setTitle("New High Score!");
+        dialog.setHeaderText("You scored " + score + "! Enter your 3-letter initials:");
+        dialog.setContentText("Initials:");
+
+        Optional<String> result = dialog.showAndWait();
+
+        if (result.isEmpty()) {
+            // Player cancelled - score is simply not recorded
+            return;
+        }
+
+        String initials = result.get().trim().toUpperCase();
+
+        if (!initials.matches("[A-Za-z]{3}")) {
+            // Invalid input - inform the player and prompt again
+            Alert alert = new Alert(Alert.AlertType.WARNING,
+                    "Please enter exactly 3 letters (e.g. ABC).", ButtonType.OK);
+            alert.showAndWait();
+            promptForNewScore(stage, score, onComplete);
+            return;
+        }
+
+        addScore(initials, score);
+
+        if (onComplete != null) {
+            onComplete.run();
+        }
+    }
+
+    /**
+     * Adds a new score, re-sorts, truncates to the top MAX_SCORES entries,
+     * and persists the result to scores.json.
+     */
+    private static void addScore(String player, int score) {
+        List<PlayerScore> scores = readScores();
+        scores.add(new PlayerScore(player, score));
+
+        scores.sort(
+                (firstScore, secondScore) ->
+                        Integer.compare(secondScore.score(), firstScore.score())
+        );
+
+        if (scores.size() > MAX_SCORES) {
+            scores = scores.subList(0, MAX_SCORES);
+        }
+
+        writeScores(scores);
+    }
+
+    // Shows a confirmation dialog before wiping the top scores list
+    private static void confirmAndResetScores(Stage stage, Runnable onBack) {
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION,
+                "This will permanently clear all high scores. Continue?",
+                ButtonType.YES, ButtonType.NO);
+        confirm.setTitle("Reset High Scores");
+        confirm.setHeaderText(null);
+
+        Optional<ButtonType> result = confirm.showAndWait();
+
+        if (result.isPresent() && result.get() == ButtonType.YES) {
+            writeScores(new ArrayList<>());
+            // Refresh the screen so the cleared list is shown immediately
+            show(stage, onBack);
+        }
     }
 
     // Reading player identifiers and scores from JSON file
@@ -145,6 +245,30 @@ public class HighScores {
                         Integer.compare(secondScore.score(), firstScore.score())
         );
         return scores;
+    }
+
+    // Writing the current top scores list back out to the JSON file
+    private static void writeScores(List<PlayerScore> scores) {
+        StringBuilder json = new StringBuilder();
+        json.append("{\n");
+
+        for (int i = 0; i < scores.size(); i++) {
+            PlayerScore playerScore = scores.get(i);
+            json.append("  \"").append(playerScore.player()).append("\": ").append(playerScore.score());
+            if (i < scores.size() - 1) {
+                json.append(",");
+            }
+            json.append("\n");
+        }
+
+        json.append("}\n");
+
+        try {
+            Files.createDirectories(SCORES_FILE.getParent());
+            Files.writeString(SCORES_FILE, json.toString());
+        } catch (IOException e) {
+            System.err.println("Could not write scores.json: " + e.getMessage());
+        }
     }
 
     // Storing player identifier and score together while displaying scores

@@ -184,9 +184,8 @@ public class PlayerBoard {
 
         animateHorizontalMovement();
 
-        //fast drop
         if (piece.getAnchorColumn() == targetCol) {
-            fallTimer.setRate(10);
+            fallTimer.setRate(5);
         }
 
     }

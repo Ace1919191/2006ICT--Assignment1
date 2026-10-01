@@ -4,7 +4,11 @@
   "level": 1,
   "music": true,
   "soundEffects": true,
-  "aiPlayer": true,
-  "extendedMode": false,
-  "twoPlayerMode": true
+  "twoPlayerMode": true,
+  "player1Ai": true,
+  "player1Human": false,
+  "player1External": false,
+  "player2Ai": true,
+  "player2Human": false,
+  "player2External": false
 }

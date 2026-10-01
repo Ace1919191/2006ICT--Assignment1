@@ -10,7 +10,6 @@ public final class TetrisAI {
 
     public GameBoard copyBoard(GameBoard board) {
         GameBoard clone = new GameBoard(board.height(), board.width());
-
         for (int row = 0; row < board.height(); row++) {
             for (int col = 0; col < board.width(); col++) {
                 PieceType block = board.getLockedBlock(row, col);
@@ -105,10 +104,8 @@ public final class TetrisAI {
                 int score = evaluator.evaluate(result.board(), result.linesCleared());
                 moves.add(new Move(anchorCol, rotation, score));
             }
-
         }
         return moves;
-
     }
 
 
@@ -120,9 +117,7 @@ public final class TetrisAI {
 
             }
         }
-
         return best;
-
     }
 }
 

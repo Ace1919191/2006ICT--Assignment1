@@ -35,9 +35,14 @@ public class Settings {
 
         boolean music = getBoolean(json, "music", true);
         boolean soundEffects = getBoolean(json, "soundEffects", true);
-        boolean aiPlayer = getBoolean(json, "aiPlayer", false);
-        boolean extendedMode = getBoolean(json, "extendedMode", false);
         boolean twoPlayerMode = getBoolean(json, "twoPlayerMode", true);
+
+        boolean player1Ai = getBoolean(json, "player1Ai", false);
+        boolean player1Human = getBoolean(json, "player1Human", true);
+        boolean player1External = getBoolean(json, "player1External", false);
+        boolean player2Ai = getBoolean(json, "player2Ai", false);
+        boolean player2Human = getBoolean(json, "player2Human", true);
+        boolean player2External = getBoolean(json, "player2External", false);
 
         // Creating title for Settings Screen
         Label titleLabel = new Label("Settings");
@@ -61,8 +66,74 @@ public class Settings {
         // Creating CheckBox Objects for On/Off settings
         CheckBox musicCheckBox = createCheckBox(music);
         CheckBox soundEffectsCheckBox = createCheckBox(soundEffects);
-        CheckBox aiPlayerCheckBox = createCheckBox(aiPlayer);
-        CheckBox extendedModeCheckBox = createCheckBox(extendedMode);
+
+        CheckBox player1AiCheckBox = createCheckBox(player1Ai);
+        CheckBox player1HumanCheckBox = createCheckBox(player1Human);
+        CheckBox player1ExternalCheckBox = createCheckBox(player1External);
+        CheckBox player2AiCheckBox = createCheckBox(player2Ai);
+        CheckBox player2HumanCheckBox = createCheckBox(player2Human);
+        CheckBox player2ExternalCheckBox = createCheckBox(player2External);
+
+
+        player1AiCheckBox.selectedProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal) {
+                player1HumanCheckBox.setSelected(false);
+                player1ExternalCheckBox.setSelected(false);
+            }
+        });
+
+        player1HumanCheckBox.selectedProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal) {
+                player1AiCheckBox.setSelected(false);
+                player1ExternalCheckBox.setSelected(false); }
+        });
+
+        player1ExternalCheckBox.selectedProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal) {
+                player1AiCheckBox.setSelected(false);
+                player1HumanCheckBox.setSelected(false); }
+        });
+        player2AiCheckBox.selectedProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal) {
+                player2HumanCheckBox.setSelected(false);
+                player2ExternalCheckBox.setSelected(false); }
+        });
+
+        player2HumanCheckBox.selectedProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal) {
+                player2AiCheckBox.setSelected(false);
+                player2ExternalCheckBox.setSelected(false); }
+        });
+
+        player2ExternalCheckBox.selectedProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal) {
+                player2AiCheckBox.setSelected(false);
+                player2HumanCheckBox.setSelected(false);
+            }
+        });
+
+        HBox player1Row = new HBox(20);
+        player1Row.setAlignment(Pos.CENTER_LEFT);
+        player1Row.getChildren().addAll(
+                player1AiCheckBox,
+                createLabel("AI"),
+                player1HumanCheckBox,
+                createLabel("Human"),
+                player1ExternalCheckBox,
+                createLabel("External")
+        );
+
+        HBox player2Row = new HBox(20);
+        player2Row.setAlignment(Pos.CENTER_LEFT);
+        player2Row.getChildren().addAll(
+                player2AiCheckBox,
+                createLabel("AI"),
+                player2HumanCheckBox,
+                createLabel("Human"),
+                player2ExternalCheckBox,
+                createLabel("External")
+        );
+
 
         // Creating CheckBox controlling whether the match is 1 or 2 players
         CheckBox twoPlayerModeCheckBox = createCheckBox(twoPlayerMode);
@@ -70,8 +141,6 @@ public class Settings {
         // Creating labels to display On or Off beside each CheckBox
         Label musicValue = createLabel(music ? "On" : "Off");
         Label soundEffectsValue = createLabel(soundEffects ? "On" : "Off");
-        Label aiPlayerValue = createLabel(aiPlayer ? "On" : "Off");
-        Label extendedModeValue = createLabel(extendedMode ? "On" : "Off");
         Label twoPlayerModeValue = createLabel(twoPlayerMode ? "2 Players" : "1 Player");
 
         // Updating On/Off labels when CheckBoxes are changed
@@ -83,18 +152,6 @@ public class Settings {
 
         soundEffectsValue.textProperty().bind(
                 Bindings.when(soundEffectsCheckBox.selectedProperty())
-                        .then("On")
-                        .otherwise("Off")
-        );
-
-        aiPlayerValue.textProperty().bind(
-                Bindings.when(aiPlayerCheckBox.selectedProperty())
-                        .then("On")
-                        .otherwise("Off")
-        );
-
-        extendedModeValue.textProperty().bind(
-                Bindings.when(extendedModeCheckBox.selectedProperty())
                         .then("On")
                         .otherwise("Off")
         );
@@ -130,10 +187,6 @@ public class Settings {
 
         settingsGrid.getColumnConstraints().addAll(labelColumn, controlColumn, valueColumn);
 
-        // Adding Player Mode controls to first row so it's easy to find
-        settingsGrid.add(createLabel("Two Player Mode:"), 0, 0);
-        settingsGrid.add(twoPlayerModeCheckBox, 1, 0);
-        settingsGrid.add(twoPlayerModeValue, 2, 0);
 
         // Adding Field Width controls
         settingsGrid.add(createLabel("Field Width (No. of cells):"), 0, 1);
@@ -160,15 +213,18 @@ public class Settings {
         settingsGrid.add(soundEffectsCheckBox, 1, 5);
         settingsGrid.add(soundEffectsValue, 2, 5);
 
-        // Adding AI Player controls
-        settingsGrid.add(createLabel("AI Player:"), 0, 6);
-        settingsGrid.add(aiPlayerCheckBox, 1, 6);
-        settingsGrid.add(aiPlayerValue, 2, 6);
+        // Changed two player mode to extended mode to match video demo
+        settingsGrid.add(createLabel("Extended Mode: "), 0, 6);
+        settingsGrid.add(twoPlayerModeCheckBox, 1, 6);
+        settingsGrid.add(twoPlayerModeValue, 2, 6);
 
-        // Adding Extended Mode controls
-        settingsGrid.add(createLabel("Extended Mode:"), 0, 7);
-        settingsGrid.add(extendedModeCheckBox, 1, 7);
-        settingsGrid.add(extendedModeValue, 2, 7);
+        // Player 1 row
+        settingsGrid.add(createLabel("Player 1:"), 0, 7);
+        settingsGrid.add(player1Row, 1, 7);
+
+        // Player 2 row
+        settingsGrid.add(createLabel("Player 2:"), 0, 8);
+        settingsGrid.add(player2Row, 1, 8);
 
         // Creating Button Objects for Settings Screen
         Button saveButton = new Button("Save");
@@ -198,9 +254,13 @@ public class Settings {
                     newLevel,
                     musicCheckBox.isSelected(),
                     soundEffectsCheckBox.isSelected(),
-                    aiPlayerCheckBox.isSelected(),
-                    extendedModeCheckBox.isSelected(),
-                    twoPlayerModeCheckBox.isSelected()
+                    twoPlayerModeCheckBox.isSelected(),
+                    player1AiCheckBox.isSelected(),
+                    player1HumanCheckBox.isSelected(),
+                    player1ExternalCheckBox.isSelected(),
+                    player2AiCheckBox.isSelected(),
+                    player2HumanCheckBox.isSelected(),
+                    player2ExternalCheckBox.isSelected()
             );
             saveMessage.setText("Settings Saved");
         });
@@ -277,9 +337,13 @@ public class Settings {
             int level,
             boolean music,
             boolean soundEffects,
-            boolean aiPlayer,
-            boolean extendedMode,
-            boolean twoPlayerMode) {
+            boolean twoPlayerMode,
+            boolean player1Ai,
+            boolean player1Human,
+            boolean player1External,
+            boolean player2Ai,
+            boolean player2Human,
+            boolean player2External) {
 
         String json =
                 "{\n" +
@@ -288,9 +352,13 @@ public class Settings {
                         "  \"level\": " + level + ",\n" +
                         "  \"music\": " + music + ",\n" +
                         "  \"soundEffects\": " + soundEffects + ",\n" +
-                        "  \"aiPlayer\": " + aiPlayer + ",\n" +
-                        "  \"extendedMode\": " + extendedMode + ",\n" +
-                        "  \"twoPlayerMode\": " + twoPlayerMode + "\n" +
+                        "  \"twoPlayerMode\": " + twoPlayerMode + ",\n" +
+                        "  \"player1Ai\": " + player1Ai + ",\n" +
+                        "  \"player1Human\": " + player1Human + ",\n" +
+                        "  \"player1External\": " + player1External + ",\n" +
+                        "  \"player2Ai\": " + player2Ai + ",\n" +
+                        "  \"player2Human\": " + player2Human + ",\n" +
+                        "  \"player2External\": " + player2External + "\n" +
                         "}";
 
         try {

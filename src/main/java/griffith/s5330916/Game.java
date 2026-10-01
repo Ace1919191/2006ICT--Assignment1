@@ -21,7 +21,7 @@ public class Game {
 
     // Whether this match is being played with one board or two boards side by side
     private boolean twoPlayerMode;
-    private boolean aiPlayer;
+
 
     // Each player runs on their own independent board.
     // playerTwo stays null for the entire match when running in single player mode.
@@ -58,7 +58,8 @@ public class Game {
         int fieldHeight = settings.getFieldHeight();
         int fieldWidth = settings.getFieldWidth();
         twoPlayerMode = settings.isTwoPlayerMode();
-        aiPlayer = settings.isAiPlayer();
+        boolean player1Ai = settings.isPlayer1Ai();
+        boolean player2Ai = settings.isPlayer2Ai();
 
         // Creating title for Game Screen, reflecting the selected player count
         Label titleLabel = new Label(twoPlayerMode ? "Tetris - 2 Player" : "Tetris - 1 Player");
@@ -71,8 +72,13 @@ public class Game {
         // Creating player one's board. In single player mode this board accepts
         // both WASD and Arrow Key controls so either control scheme works.
         String playerOneLabel = twoPlayerMode ? "Player 1 (WASD)" : "Player 1";
-        playerOne = new PlayerBoard(playerOneLabel, fieldHeight, fieldWidth, () -> handlePlayerGameOver(true),
-                pieceSequence);
+        playerOne = new PlayerBoard(playerOneLabel, fieldHeight, fieldWidth,
+                () -> handlePlayerGameOver(true), pieceSequence);
+
+        if (player1Ai) {
+            playerOne.setAiPlayer(true);
+        }
+
 
         // Only creating a second board when Two Player Mode is enabled
         HBox boardsLayout;
@@ -80,11 +86,13 @@ public class Game {
             playerTwo = new PlayerBoard("Player 2 (Arrow Keys)", fieldHeight, fieldWidth,
                     () -> handlePlayerGameOver(false), pieceSequence);
 
-            if (aiPlayer) {
+            if (player2Ai) {
                 playerTwo.setAiPlayer(true);
             }
 
-            boardsLayout = new HBox(60, playerOne.getView(), playerTwo.getView());
+
+
+        boardsLayout = new HBox(60, playerOne.getView(), playerTwo.getView());
         } else {
             playerTwo = null;
             boardsLayout = new HBox(playerOne.getView());
@@ -168,40 +176,46 @@ public class Game {
             switch (event.getCode()) {
                 // Player 1 controls (always active)
                 case A:
-                    playerOne.moveLeft();
+                    if (!player1Ai) playerOne.moveLeft();
                     break;
                 case D:
-                    playerOne.moveRight();
+                    if (!player1Ai) playerOne.moveRight();
                     break;
                 case W:
-                    playerOne.rotate();
+                    if (!player1Ai) playerOne.rotate();
                     break;
                 case S:
-                    playerOne.setSoftDrop(true);
+                    if (!player1Ai) playerOne.setSoftDrop(true);
                     break;
+
 
                 // Player 2 controls in Two Player Mode; fall back to controlling
                 // Player 1 in Single Player Mode so Arrow Keys also work.
                 case LEFT:
-                    if (!aiPlayer) {
+                    if (!player2Ai) {
                         (twoPlayerMode ? playerTwo : playerOne).moveLeft();
                     }
                     break;
+
                 case RIGHT:
-                    if (!aiPlayer) {
+                    if (!player2Ai) {
                         (twoPlayerMode ? playerTwo : playerOne).moveRight();
                     }
                     break;
+
+
                 case UP:
-                    if (!aiPlayer) {
+                    if (!player2Ai) {
                         (twoPlayerMode ? playerTwo : playerOne).rotate();
                     }
                     break;
+
                 case DOWN:
-                    if (!aiPlayer) {
+                    if (!player2Ai) {
                         (twoPlayerMode ? playerTwo : playerOne).setSoftDrop(true);
                     }
                     break;
+
 
                 // Pausing or resuming the board(s) together
                 case P:
@@ -218,11 +232,16 @@ public class Game {
         gameScene.addEventFilter(KeyEvent.KEY_RELEASED, event -> {
             switch (event.getCode()) {
                 case S:
-                    playerOne.setSoftDrop(false);
+                    if (!player1Ai) playerOne.setSoftDrop(false);
                     break;
+
                 case DOWN:
-                    (twoPlayerMode ? playerTwo : playerOne).setSoftDrop(false);
+                    if (!player2Ai) {
+                        (twoPlayerMode ? playerTwo : playerOne).setSoftDrop(false);
+                    }
                     break;
+
+
                 default:
                     break;
             }

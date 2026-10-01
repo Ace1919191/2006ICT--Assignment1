@@ -17,18 +17,21 @@ public final class GameSettings {
     private static final int DEFAULT_FIELD_HEIGHT = 20;
     private static final int DEFAULT_FIELD_WIDTH = 10;
     private static final boolean DEFAULT_TWO_PLAYER_MODE = true;
-    private static final boolean DEFAULT_AI_PLAYER = false;
+    private static final boolean DEFAULT_AI_PLAYER1 = false;
+    private static final boolean DEFAULT_AI_PLAYER2 = false;
 
     private final int fieldHeight;
     private final int fieldWidth;
     private final boolean twoPlayerMode;
-    private final boolean aiPlayer;
+    private final boolean player1Ai;
+    private final boolean player2Ai;
 
-    private GameSettings(int fieldHeight, int fieldWidth, boolean twoPlayerMode, boolean aiPlayer) {
+    private GameSettings(int fieldHeight, int fieldWidth, boolean twoPlayerMode, boolean player1Ai, boolean player2Ai) {
         this.fieldHeight = fieldHeight;
         this.fieldWidth = fieldWidth;
         this.twoPlayerMode = twoPlayerMode;
-        this.aiPlayer = aiPlayer;
+        this.player1Ai = player1Ai;
+        this.player2Ai = player2Ai;
     }
 
     public static GameSettings load() {
@@ -37,8 +40,9 @@ public final class GameSettings {
         int fieldHeight = getInt(json, "fieldLength", DEFAULT_FIELD_HEIGHT);
         int fieldWidth = getInt(json, "fieldWidth", DEFAULT_FIELD_WIDTH);
         boolean twoPlayerMode = getBoolean(json, "twoPlayerMode", DEFAULT_TWO_PLAYER_MODE);
-        boolean aiPlayer = getBoolean(json, "aiPlayer", DEFAULT_AI_PLAYER);
-        return new GameSettings(fieldHeight, fieldWidth, twoPlayerMode, aiPlayer);
+        boolean player1Ai = getBoolean(json, "player1Ai", DEFAULT_AI_PLAYER1);
+        boolean player2Ai = getBoolean(json, "player2Ai", DEFAULT_AI_PLAYER2);
+        return new GameSettings(fieldHeight, fieldWidth, twoPlayerMode, player1Ai, player2Ai);
     }
 
     public int getFieldHeight() {
@@ -54,8 +58,11 @@ public final class GameSettings {
         return twoPlayerMode;
     }
 
-    public boolean isAiPlayer() {
-        return aiPlayer;
+    public boolean isPlayer1Ai() {
+        return player1Ai;
+    }
+    public boolean isPlayer2Ai()  {
+        return player2Ai;
     }
 
 

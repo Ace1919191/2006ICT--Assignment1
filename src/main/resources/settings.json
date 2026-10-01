@@ -6,5 +6,5 @@
   "soundEffects": true,
   "aiPlayer": false,
   "extendedMode": false,
-  "twoPlayerMode": true
+  "twoPlayerMode": false
 }

@@ -14,6 +14,7 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.shape.Rectangle;
 import javafx.util.Duration;
+import javafx.scene.media.AudioClip;
 
 /**
  * Encapsulates one player's independent Tetris board: its own grid,
@@ -22,6 +23,15 @@ import javafx.util.Duration;
  */
 public class PlayerBoard {
 
+    private static final AudioClip ROTATE_SOUND = new AudioClip(
+                PlayerBoard.class.getResource("/audio/rotatepiece.wav").toExternalForm()
+        );
+    private static final AudioClip LAND_SOUND = new AudioClip(
+            PlayerBoard.class.getResource("/audio/piecelands.wav").toExternalForm()
+    );
+    private static final AudioClip LINE_CLEAR_SOUND = new AudioClip(
+            PlayerBoard.class.getResource("/audio/linecleared.wav").toExternalForm()
+    );
     private static final String EMPTY_CELL_STYLE =
             "-fx-background-color: black;" +
                     "-fx-border-color: #555;" +
@@ -215,6 +225,7 @@ public class PlayerBoard {
         }
         if (pieceController.rotatePiece()) {
             updateFallingPieceShape();
+            playSound(ROTATE_SOUND);
         }
     }
 
@@ -294,13 +305,28 @@ public class PlayerBoard {
         } else {
             // Locking piece into grid once it can no longer move down
             lockPiece();
+            playSound(LAND_SOUND);
 
             // Checking for completed rows and adding score
             int linesCleared = gameBoard.clearFullRows();
+            if (linesCleared > 0) {
+                playSound(LINE_CLEAR_SOUND);
+            }
             addScore(linesCleared);
 
             // Spawning another random piece
             spawnPiece();
+        }
+    }
+    private static boolean soundEffectsEnabled =
+            GameSettings.load().isSoundEffectsEnabled();
+
+    public static void setSoundEffectsEnabled(boolean enabled) {
+        soundEffectsEnabled = enabled;
+    }
+    private void playSound(AudioClip sound) {
+        if (soundEffectsEnabled) {
+            sound.play();
         }
     }
 

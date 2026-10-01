@@ -10,6 +10,7 @@ import java.util.regex.Pattern;
 /**
  * Loads the Tetris board dimensions and player-count setting from settings.json.
  */
+
 public final class GameSettings {
     private static final Path SETTINGS_FILE =
             Paths.get("src", "main", "resources", "settings.json");
@@ -21,21 +22,28 @@ public final class GameSettings {
     private final int fieldHeight;
     private final int fieldWidth;
     private final boolean twoPlayerMode;
+    private final boolean music;
+    private final boolean soundEffects;
 
-    private GameSettings(int fieldHeight, int fieldWidth, boolean twoPlayerMode) {
+    private GameSettings(int fieldHeight, int fieldWidth, boolean twoPlayerMode,
+                         boolean music, boolean soundEffects) {
         this.fieldHeight = fieldHeight;
         this.fieldWidth = fieldWidth;
         this.twoPlayerMode = twoPlayerMode;
+        this.music = music;
+        this.soundEffects = soundEffects;
     }
 
     public static GameSettings load() {
         String json = readSettingsFile();
+        boolean music = getBoolean(json, "music", true);
+        boolean soundEffects = getBoolean(json, "soundEffects", true);
 
         int fieldHeight = getInt(json, "fieldLength", DEFAULT_FIELD_HEIGHT);
         int fieldWidth = getInt(json, "fieldWidth", DEFAULT_FIELD_WIDTH);
         boolean twoPlayerMode = getBoolean(json, "twoPlayerMode", DEFAULT_TWO_PLAYER_MODE);
 
-        return new GameSettings(fieldHeight, fieldWidth, twoPlayerMode);
+        return new GameSettings(fieldHeight, fieldWidth, twoPlayerMode, music, soundEffects);
     }
 
     public int getFieldHeight() {
@@ -49,6 +57,13 @@ public final class GameSettings {
     // Whether the game should be played as 2 players (side by side) or a single player
     public boolean isTwoPlayerMode() {
         return twoPlayerMode;
+    }
+    public boolean isMusicEnabled() {
+        return music;
+    }
+
+    public boolean isSoundEffectsEnabled() {
+        return soundEffects;
     }
 
     private static String readSettingsFile() {

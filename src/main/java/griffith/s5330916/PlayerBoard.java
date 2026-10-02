@@ -61,6 +61,13 @@ public class PlayerBoard {
     private Label statusLabel;
     private VBox view;
 
+    // AI Variables
+    private boolean aiPlayer = false;
+    private volatile OpMove pendingAIMove;
+    private boolean aiRotationComplete = false;
+    private volatile boolean waitingForAIMove = false;
+
+
     public PlayerBoard(String playerName, int fieldHeight, int fieldWidth, Runnable onGameOver,
                        PieceSequence pieceSequence) {
         this.playerName = playerName;

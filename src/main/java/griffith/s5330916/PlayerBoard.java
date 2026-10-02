@@ -16,11 +16,11 @@ import javafx.scene.shape.Rectangle;
 import javafx.util.Duration;
 import javafx.scene.media.AudioClip;
 
-/**
- * Encapsulates one player's independent Tetris board: its own grid,
- * falling piece, score, and fall timer. Two of these are created side
- * by side in {@link Game} to run a local two-player match.
- */
+import java.io.IOException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 public class PlayerBoard {
 
     private static final AudioClip ROTATE_SOUND = new AudioClip(
@@ -40,17 +40,16 @@ public class PlayerBoard {
     private final String playerName;
     private final int fieldHeight;
     private final int fieldWidth;
-
-    // Called once when this player's board tops out
     private final Runnable onGameOver;
-
-    // Shared with the other player's board (when there is one) so that both
-    // players receive the exact same sequence of pieces
     private final PieceSequence pieceSequence;
 
-    // Counts how many pieces this board has spawned so far; used as the
-    // index into pieceSequence so "piece number N" matches for every board
+    // Single background worker keeps server updates in order for this board.
+    private final ExecutorService serverExecutor;
+    private final AtomicBoolean serverRequestActive = new AtomicBoolean(false);
+    private volatile PureGame pendingServerSnapshot;
+
     private int pieceIndex = 0;
+    private PieceType nextPieceType;
 
     private GameBoard gameBoard;
     private PieceController pieceController;
@@ -83,6 +82,13 @@ public class PlayerBoard {
 
     private VBox view;
 
+    // AI Variables
+    private boolean aiPlayer = false;
+    private volatile OpMove pendingAIMove;
+    private boolean aiRotationComplete = false;
+    private volatile boolean waitingForAIMove = false;
+
+
     public PlayerBoard(String playerName, int fieldHeight, int fieldWidth, Runnable onGameOver,
                        PieceSequence pieceSequence) {
         this.playerName = playerName;
@@ -90,6 +96,12 @@ public class PlayerBoard {
         this.fieldWidth = fieldWidth;
         this.onGameOver = onGameOver;
         this.pieceSequence = pieceSequence;
+
+        serverExecutor = Executors.newSingleThreadExecutor(task -> {
+            Thread thread = new Thread(task, "TetrisServerSync-" + playerName);
+            thread.setDaemon(true);
+            return thread;
+        });
 
         buildView();
     }
@@ -180,6 +192,7 @@ public class PlayerBoard {
         if (gameOverTriggered) {
             return;
         }
+
         paused = true;
         fallTimer.pause();
         pausePieceAnimations();
@@ -191,6 +204,7 @@ public class PlayerBoard {
         if (gameOverTriggered) {
             return;
         }
+
         paused = false;
         statusLabel.setText("");
         resumePieceAnimations();
@@ -202,13 +216,56 @@ public class PlayerBoard {
         fallTimer.stop();
         stopPieceAnimations();
         softDropActive = false;
+        pendingServerSnapshot = null;
+        pendingAIMove = null;
+        waitingForAIMove = false;
+        serverExecutor.shutdownNow();
     }
 
     public int getScore() {
         return score;
     }
 
-    // Moving current piece left
+    public void setAiPlayer(boolean aiPlayer) {
+        this.aiPlayer = aiPlayer;
+    }
+
+    private void applyAIMove() {
+        if (pendingAIMove == null) {
+            return;
+        }
+
+        ActivePiece piece = pieceController.getCurrentPiece();
+        if (piece == null) {
+            return;
+        }
+
+        if (!aiRotationComplete) {
+            for (int i = 0; i < pendingAIMove.opRotate(); i++) {
+                pieceController.rotatePiece();
+            }
+            updateFallingPieceShape();
+            aiRotationComplete = true;
+        }
+
+        int targetColumn = pendingAIMove.opX();
+        int currentColumn = piece.getAnchorColumn();
+
+        if (currentColumn < targetColumn) {
+            pieceController.movePieceHorizontal(1);
+        } else if (currentColumn > targetColumn) {
+            pieceController.movePieceHorizontal(-1);
+        }
+
+        fallingPieceGroup.setTranslateX(piece.getAnchorColumn() * cellSize);
+        fallingPieceGroup.setTranslateY(piece.getAnchorRow() * cellSize);
+        animateHorizontalMovement();
+
+        if (piece.getAnchorColumn() == targetColumn) {
+            fallTimer.setRate(5);
+        }
+    }
+
     public void moveLeft() {
         movePieceHorizontal(-1);
     }
@@ -223,9 +280,11 @@ public class PlayerBoard {
         if (paused || gameOverTriggered) {
             return;
         }
+
         if (pieceController.rotatePiece()) {
             updateFallingPieceShape();
             playSound(ROTATE_SOUND);
+            sendCurrentStateToServer();
         }
     }
 
@@ -266,6 +325,7 @@ public class PlayerBoard {
         // players (in Two Player Mode) receive identical piece order
         PieceType currentPieceType = pieceSequence.getPiece(pieceIndex);
         pieceIndex++;
+        nextPieceType = pieceSequence.getPiece(pieceIndex);
 
         ActivePiece currentPiece = new ActivePiece(currentPieceType, anchorRow, anchorColumn);
         pieceController.setCurrentPiece(currentPiece);
@@ -291,17 +351,40 @@ public class PlayerBoard {
         fallingPieceGroup.setTranslateY(anchorRow * cellSize);
 
         renderGrid();
+
+        if (aiPlayer) {
+            pendingAIMove = null;
+            aiRotationComplete = false;
+            waitingForAIMove = true;
+            fallTimer.setRate(1);
+        }
+
+        // Human boards use the reply only for the server mirror.
+        // AI boards use this spawn snapshot as their one move request for the piece.
+        sendCurrentStateToServer();
     }
 
-    // Moving current piece down one grid space
     private void movePieceDown() {
-        // Preventing movement while paused
-        if (paused) {
+        if (paused || gameOverTriggered) {
             return;
         }
-        // Moving piece if next position is available
+
+        if (aiPlayer) {
+            if (waitingForAIMove || pendingAIMove == null) {
+                return;
+            }
+
+            applyAIMove();
+        }
+
         if (pieceController.movePieceDown()) {
             animateVerticalMovement();
+
+            // Keep sending the current position so the server-side live mirror
+            // follows both human and AI-controlled pieces.
+            // For AI players, later returned OpMove values are ignored because
+            // waitingForAIMove is already false after the spawn decision arrives.
+            sendCurrentStateToServer();
         } else {
             // Locking piece into grid once it can no longer move down
             lockPiece();
@@ -336,13 +419,92 @@ public class PlayerBoard {
         if (paused || gameOverTriggered) {
             return;
         }
-        // Moving piece if new horizontal position is available
+
         if (pieceController.movePieceHorizontal(direction)) {
             animateHorizontalMovement();
+            sendCurrentStateToServer();
         }
     }
 
-    // Converting falling piece into locked blocks
+    private void sendCurrentStateToServer() {
+        if (gameOverTriggered || nextPieceType == null || serverExecutor.isShutdown()) {
+            return;
+        }
+
+        ActivePiece currentPiece = pieceController.getCurrentPiece();
+
+        if (currentPiece == null) {
+            return;
+        }
+
+        // Replace any older unsent snapshot with the newest state. This keeps the server mirror current
+        // even during soft drop or rapid key presses.
+        pendingServerSnapshot = new PureGame(
+                playerName,
+                fieldWidth,
+                fieldHeight,
+                gameBoard.getServerCells(),
+                copyShape(currentPiece.getCurrentPieceShape()),
+                nextPieceType.createShape(),
+                currentPiece.getAnchorRow(),
+                currentPiece.getAnchorColumn()
+        );
+
+        startServerWorkerIfNeeded();
+    }
+
+    private void startServerWorkerIfNeeded() {
+        if (serverRequestActive.compareAndSet(false, true)) {
+            serverExecutor.execute(this::processServerSnapshots);
+        }
+    }
+
+    private void processServerSnapshots() {
+        try {
+            while (!Thread.currentThread().isInterrupted()) {
+                PureGame snapshot = pendingServerSnapshot;
+                pendingServerSnapshot = null;
+
+                if (snapshot == null) {
+                    break;
+                }
+
+                try {
+                    OpMove returnedMove = TetrisClient.requestMove(snapshot);
+
+                    System.out.println("[CLIENT] " + playerName + " received move -> target column="
+                        + returnedMove.opX() + ", rotations=" + returnedMove.opRotate());
+
+                    if (aiPlayer && waitingForAIMove) {
+                        pendingAIMove = returnedMove;
+                        waitingForAIMove = false;
+                    }
+                } catch (IOException e) {
+                    System.err.println("[CLIENT] " + playerName + " -> TetrisServer unavailable: " + e.getMessage());
+                    pendingServerSnapshot = null;
+                    break;
+                }
+            }
+        } finally {
+            serverRequestActive.set(false);
+
+            if (pendingServerSnapshot != null && !serverExecutor.isShutdown()) {
+                startServerWorkerIfNeeded();
+            }
+        }
+    }
+
+    private static int[][] copyShape(int[][] shape) {
+        int[][] copy = new int[shape.length][2];
+
+        for (int i = 0; i < shape.length; i++) {
+            copy[i][0] = shape[i][0];
+            copy[i][1] = shape[i][1];
+        }
+
+        return copy;
+    }
+
     private void lockPiece() {
         stopPieceAnimations();
 
@@ -372,7 +534,7 @@ public class PlayerBoard {
             default:
                 break;
         }
-        // Updating displayed score
+
         scoreLabel.setText("Score: " + score);
     }
 
@@ -381,6 +543,7 @@ public class PlayerBoard {
         for (int row = 0; row < fieldHeight; row++) {
             for (int column = 0; column < fieldWidth; column++) {
                 PieceType lockedPiece = gameBoard.getLockedBlock(row, column);
+
                 if (lockedPiece != null) {
                     gridCells[row][column].setStyle(createPieceStyle(lockedPiece.getColour()));
                 } else {
@@ -395,16 +558,14 @@ public class PlayerBoard {
         fallingPieceGroup.getChildren().clear();
 
         ActivePiece currentPiece = pieceController.getCurrentPiece();
+
         for (int[] block : currentPiece.getCurrentPieceShape()) {
             Rectangle rectangle = new Rectangle(cellSize, cellSize);
 
-            // Positioning block relative to anchor block
             rectangle.setX(block[1] * cellSize);
             rectangle.setY(block[0] * cellSize);
-
-            // Applying piece colour and border to individual block
-            rectangle.setStyle("-fx-fill: " + currentPiece.getCurrentPieceType().getColour() + ";" +
-                    "-fx-stroke: black; -fx-stroke-width: 2;");
+            rectangle.setStyle("-fx-fill: " + currentPiece.getCurrentPieceType().getColour() + ";"
+                    + "-fx-stroke: black; -fx-stroke-width: 2;");
 
             fallingPieceGroup.getChildren().add(rectangle);
         }
@@ -468,9 +629,8 @@ public class PlayerBoard {
         }
     }
 
-    // Creating coloured block with border so individual cells remain visible
     private static String createPieceStyle(String colour) {
-        return "-fx-background-color: " + colour + ";" +
-                "-fx-border-color: black; -fx-border-width: 2;";
+        return "-fx-background-color: " + colour + ";"
+                + "-fx-border-color: black; -fx-border-width: 2;";
     }
 }

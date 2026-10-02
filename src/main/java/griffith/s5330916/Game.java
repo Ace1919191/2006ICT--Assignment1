@@ -42,18 +42,11 @@ public class Game {
     // Whether this match is being played with one board or two boards side by side
     private boolean twoPlayerMode;
 
-    // Each player runs on their own independent board.
-    // playerTwo stays null for the entire match when running in single player mode.
     private PlayerBoard playerOne;
     private PlayerBoard playerTwo;
 
     private boolean paused = false;
-
-    // Preventing the win/tie message from being overwritten once decided
     private boolean roundEnded = false;
-
-    // Tracking which boards have topped out so the match can continue for
-    // whichever player is still alive in Two Player Mode
     private boolean playerOneEnded = false;
     private boolean playerTwoEnded = false;
 
@@ -74,26 +67,27 @@ public class Game {
         int fieldHeight = settings.getFieldHeight();
         int fieldWidth = settings.getFieldWidth();
         twoPlayerMode = settings.isTwoPlayerMode();
+        boolean player1Ai = settings.isPlayer1Ai();
+        boolean player2Ai = settings.isPlayer2Ai();
 
         // Creating title for Game Screen, reflecting the selected player count
         Label titleLabel = new Label(twoPlayerMode ? "Tetris - 2 Player" : "Tetris - 1 Player");
         titleLabel.setStyle("-fx-font-size: 30px; -fx-font-weight: bold; -fx-text-fill: yellow;");
 
-        // Shared piece generator so that, in Two Player Mode, both boards
-        // receive the exact same sequence of pieces
         PieceSequence pieceSequence = new PieceSequence();
 
         // Creating player one's board. In single player mode this board accepts
         // both WASD and Arrow Key controls so either control scheme works.
         String playerOneLabel = twoPlayerMode ? "Player 1 (WASD)" : "Player 1";
-        playerOne = new PlayerBoard(playerOneLabel, fieldHeight, fieldWidth, () -> handlePlayerGameOver(true),
-                pieceSequence);
+        playerOne = new PlayerBoard(playerOneLabel, fieldHeight, fieldWidth,
+                () -> handlePlayerGameOver(true), pieceSequence);
+        playerOne.setAiPlayer(player1Ai);
 
-        // Only creating a second board when Two Player Mode is enabled
         HBox boardsLayout;
         if (twoPlayerMode) {
             playerTwo = new PlayerBoard("Player 2 (Arrow Keys)", fieldHeight, fieldWidth,
                     () -> handlePlayerGameOver(false), pieceSequence);
+            playerTwo.setAiPlayer(player2Ai);
             boardsLayout = new HBox(60, playerOne.getView(), playerTwo.getView());
         } else {
             playerTwo = null;
@@ -101,11 +95,9 @@ public class Game {
         }
         boardsLayout.setAlignment(Pos.CENTER);
 
-        // Label used to display Paused or the eventual match result
         overallStatusLabel = new Label("");
         overallStatusLabel.setStyle("-fx-text-fill: yellow; -fx-font-size: 18px; -fx-font-weight: bold;");
 
-        // Creating Back Button for Game Screen
         Button backButton = new Button("Back");
         String menuButtonStyle = "-fx-font-size: 20px; -fx-background-color: #555; -fx-text-fill: yellow;";
         backButton.setStyle(menuButtonStyle);
@@ -126,17 +118,13 @@ public class Game {
             pauseAll();
             overallStatusLabel.setText("Paused");
 
-            // Creating confirmation popup
-            Alert confirmation = new Alert(
-                    Alert.AlertType.CONFIRMATION,
-                    "Are you sure you want to return to the Main Menu?",
-                    ButtonType.YES,
-                    ButtonType.NO
-            );
+            Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION,
+                    "Are you sure you want to return to the Main Menu?", ButtonType.YES, ButtonType.NO);
 
             confirmation.setTitle("Return to Main Menu");
             confirmation.setHeaderText("Exit Current Game?");
             confirmation.initOwner(stage);
+
             ButtonType result = confirmation.showAndWait().orElse(ButtonType.NO);
 
             if (result == ButtonType.YES) {
@@ -182,31 +170,47 @@ public class Game {
             switch (event.getCode()) {
                 // Player 1 controls (always active)
                 case A:
-                    playerOne.moveLeft();
+                    if (!player1Ai) playerOne.moveLeft();
                     break;
                 case D:
-                    playerOne.moveRight();
+                    if (!player1Ai) playerOne.moveRight();
                     break;
                 case W:
-                    playerOne.rotate();
+                    if (!player1Ai) playerOne.rotate();
                     break;
                 case Z:
-                    playerOne.setSoftDrop(true);
+                    if (!player1Ai) playerOne.setSoftDrop(true);
                     break;
 
                 // Player 2 controls in Two Player Mode; fall back to controlling
                 // Player 1 in Single Player Mode so Arrow Keys also work.
                 case LEFT:
-                    (twoPlayerMode ? playerTwo : playerOne).moveLeft();
+                    if (twoPlayerMode) {
+                        if (!player2Ai) playerTwo.moveLeft();
+                    } else if (!player1Ai) {
+                        playerOne.moveLeft();
+                    }
                     break;
                 case RIGHT:
-                    (twoPlayerMode ? playerTwo : playerOne).moveRight();
+                    if (twoPlayerMode) {
+                        if (!player2Ai) playerTwo.moveRight();
+                    } else if (!player1Ai) {
+                        playerOne.moveRight();
+                    }
                     break;
                 case UP:
-                    (twoPlayerMode ? playerTwo : playerOne).rotate();
+                    if (twoPlayerMode) {
+                        if (!player2Ai) playerTwo.rotate();
+                    } else if (!player1Ai) {
+                        playerOne.rotate();
+                    }
                     break;
                 case DOWN:
-                    (twoPlayerMode ? playerTwo : playerOne).setSoftDrop(true);
+                    if (twoPlayerMode) {
+                        if (!player2Ai) playerTwo.setSoftDrop(true);
+                    } else if (!player1Ai) {
+                        playerOne.setSoftDrop(true);
+                    }
                     break;
                 case S:
                     soundEffectsEnabled = !soundEffectsEnabled;
@@ -241,10 +245,14 @@ public class Game {
         gameScene.addEventFilter(KeyEvent.KEY_RELEASED, event -> {
             switch (event.getCode()) {
                 case Z:
-                    playerOne.setSoftDrop(false);
+                    if (!player1Ai) playerOne.setSoftDrop(false);
                     break;
                 case DOWN:
-                    (twoPlayerMode ? playerTwo : playerOne).setSoftDrop(false);
+                    if (twoPlayerMode) {
+                        if (!player2Ai) playerTwo.setSoftDrop(false);
+                    } else if (!player1Ai) {
+                        playerOne.setSoftDrop(false);
+                    }
                     break;
                 default:
                     break;
@@ -293,6 +301,7 @@ public class Game {
     private void pauseAll() {
         paused = true;
         playerOne.pause();
+
         if (twoPlayerMode) {
             playerTwo.pause();
         }
@@ -302,6 +311,7 @@ public class Game {
     private void resumeAll() {
         paused = false;
         playerOne.resume();
+
         if (twoPlayerMode) {
             playerTwo.resume();
         }
@@ -312,6 +322,7 @@ public class Game {
 
     private void stopAll() {
         playerOne.stop();
+
         if (twoPlayerMode) {
             playerTwo.stop();
         }
@@ -322,10 +333,19 @@ public class Game {
         }
     }
 
-    // Called when a specific board tops out. In Single Player Mode this ends
-    // the match immediately. In Two Player Mode the surviving player keeps
-    // playing until they also top out, then the match ends and the higher
-    // score wins.
+    private void resetServer() {
+        Thread resetThread = new Thread(() -> {
+            try {
+                TetrisClient.resetServer();
+            } catch (Exception e) {
+                System.err.println("[CLIENT] Could not reset TetrisServer: " + e.getMessage());
+            }
+        }, "TetrisServerReset");
+
+        resetThread.setDaemon(true);
+        resetThread.start();
+    }
+
     private void handlePlayerGameOver(boolean isPlayerOne) {
         if (roundEnded) {
             return;
@@ -354,6 +374,8 @@ public class Game {
 
             overallStatusLabel.setText(
                     "Game Over - Score: " + playerOne.getScore());
+            resetServer();
+            overallStatusLabel.setText("Game Over - Score: " + playerOne.getScore());
             return;
         }
 
@@ -361,6 +383,7 @@ public class Game {
         if (playerOneEnded && playerTwoEnded) {
             roundEnded = true;
             stopAll();
+            resetServer();
 
             if (soundEffectsEnabled) {
                 GAME_OVER_SOUND.play();

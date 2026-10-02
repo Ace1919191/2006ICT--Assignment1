@@ -179,11 +179,53 @@ public class PlayerBoard {
         stopPieceAnimations();
         softDropActive = false;
         pendingServerSnapshot = null;
+        pendingAIMove = null;
+        waitingForAIMove = false;
         serverExecutor.shutdownNow();
     }
 
     public int getScore() {
         return score;
+    }
+
+    public void setAiPlayer(boolean aiPlayer) {
+        this.aiPlayer = aiPlayer;
+    }
+
+    private void applyAIMove() {
+        if (pendingAIMove == null) {
+            return;
+        }
+
+        ActivePiece piece = pieceController.getCurrentPiece();
+        if (piece == null) {
+            return;
+        }
+
+        if (!aiRotationComplete) {
+            for (int i = 0; i < pendingAIMove.opRotate(); i++) {
+                pieceController.rotatePiece();
+            }
+            updateFallingPieceShape();
+            aiRotationComplete = true;
+        }
+
+        int targetColumn = pendingAIMove.opX();
+        int currentColumn = piece.getAnchorColumn();
+
+        if (currentColumn < targetColumn) {
+            pieceController.movePieceHorizontal(1);
+        } else if (currentColumn > targetColumn) {
+            pieceController.movePieceHorizontal(-1);
+        }
+
+        fallingPieceGroup.setTranslateX(piece.getAnchorColumn() * cellSize);
+        fallingPieceGroup.setTranslateY(piece.getAnchorRow() * cellSize);
+        animateHorizontalMovement();
+
+        if (piece.getAnchorColumn() == targetColumn) {
+            fallTimer.setRate(5);
+        }
     }
 
     public void moveLeft() {
@@ -257,6 +299,15 @@ public class PlayerBoard {
         fallingPieceGroup.setTranslateY(anchorRow * cellSize);
         renderGrid();
 
+        if (aiPlayer) {
+            pendingAIMove = null;
+            aiRotationComplete = false;
+            waitingForAIMove = true;
+            fallTimer.setRate(1);
+        }
+
+        // Human boards use the reply only for the server mirror.
+        // AI boards use this spawn snapshot as their one move request for the piece.
         sendCurrentStateToServer();
     }
 
@@ -265,8 +316,21 @@ public class PlayerBoard {
             return;
         }
 
+        if (aiPlayer) {
+            if (waitingForAIMove || pendingAIMove == null) {
+                return;
+            }
+
+            applyAIMove();
+        }
+
         if (pieceController.movePieceDown()) {
             animateVerticalMovement();
+
+            // Keep sending the current position so the server-side live mirror
+            // follows both human and AI-controlled pieces.
+            // For AI players, later returned OpMove values are ignored because
+            // waitingForAIMove is already false after the spawn decision arrives.
             sendCurrentStateToServer();
         } else {
             lockPiece();
@@ -333,8 +397,15 @@ public class PlayerBoard {
                 }
 
                 try {
-                    // The returned move is intentionally ignored for gameplay. AI is not implemented yet.
-                    TetrisClient.requestMove(snapshot);
+                    OpMove returnedMove = TetrisClient.requestMove(snapshot);
+
+                    System.out.println("[CLIENT] " + playerName + " received move -> target column="
+                        + returnedMove.opX() + ", rotations=" + returnedMove.opRotate());
+
+                    if (aiPlayer && waitingForAIMove) {
+                        pendingAIMove = returnedMove;
+                        waitingForAIMove = false;
+                    }
                 } catch (IOException e) {
                     System.err.println("[CLIENT] " + playerName + " -> TetrisServer unavailable: " + e.getMessage());
                     pendingServerSnapshot = null;

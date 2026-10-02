@@ -31,7 +31,7 @@ public final class TetrisServer {
     private static final int PORT = 3000;
 
     // TRUE = open the live server mirror, FALSE = console-only server
-    private static final boolean SHOW_SERVER_WINDOW = true;
+    private static final boolean SHOW_SERVER_WINDOW = false;
 
     // TRUE prints every received state. Leave FALSE during normal play to avoid console spam.
     private static final boolean VERBOSE_STATE_LOGGING = false;
@@ -131,9 +131,12 @@ public final class TetrisServer {
 
             OpMove move = findOptimalMove(game);
 
+            log("Sending move to " + source + " -> target column=" + move.opX() + ", rotations=" + move.opRotate());
+
             if (SHOW_SERVER_WINDOW && serverGameWindow != null) {
                 Platform.runLater(() -> serverGameWindow.updateGame(game, move));
             }
+
             out.println(MAPPER.writeValueAsString(move));
         }
     }
@@ -280,19 +283,20 @@ public final class TetrisServer {
 
     private static double evaluateBoard(int[][] board, int linesCleared) {
         int[] heights = calculateColumnHeights(board);
-        int aggregateHeight = 0;
 
+        int maximumHeight = 0;
         for (int height : heights) {
-            aggregateHeight += height;
+            maximumHeight = Math.max(maximumHeight, height);
         }
 
         int holes = countHoles(board);
         int bumpiness = calculateBumpiness(heights);
 
-        return (linesCleared * 1.0)
-                - (aggregateHeight * 0.510066)
-                - (holes * 0.760666)
-                - (bumpiness * 0.184483);
+        // Same heuristic used by the AI branch's BoardEvaluator.
+        return (100.0 * linesCleared)
+                - (10.0 * maximumHeight)
+                - (5.0 * bumpiness)
+                - (40.0 * holes);
     }
 
     private static int[] calculateColumnHeights(int[][] board) {

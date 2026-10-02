@@ -47,6 +47,8 @@ public class Game {
         int fieldHeight = settings.getFieldHeight();
         int fieldWidth = settings.getFieldWidth();
         twoPlayerMode = settings.isTwoPlayerMode();
+        boolean player1Ai = settings.isPlayer1Ai();
+        boolean player2Ai = settings.isPlayer2Ai();
 
         Label titleLabel = new Label(twoPlayerMode ? "Tetris - 2 Player" : "Tetris - 1 Player");
         titleLabel.setStyle("-fx-font-size: 30px; -fx-font-weight: bold; -fx-text-fill: yellow;");
@@ -56,11 +58,13 @@ public class Game {
         String playerOneLabel = twoPlayerMode ? "Player 1 (WASD)" : "Player 1";
         playerOne = new PlayerBoard(playerOneLabel, fieldHeight, fieldWidth,
                 () -> handlePlayerGameOver(true), pieceSequence);
+        playerOne.setAiPlayer(player1Ai);
 
         HBox boardsLayout;
         if (twoPlayerMode) {
             playerTwo = new PlayerBoard("Player 2 (Arrow Keys)", fieldHeight, fieldWidth,
                     () -> handlePlayerGameOver(false), pieceSequence);
+            playerTwo.setAiPlayer(player2Ai);
             boardsLayout = new HBox(60, playerOne.getView(), playerTwo.getView());
         } else {
             playerTwo = null;
@@ -124,28 +128,44 @@ public class Game {
         gameScene.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
             switch (event.getCode()) {
                 case A:
-                    playerOne.moveLeft();
+                    if (!player1Ai) playerOne.moveLeft();
                     break;
                 case D:
-                    playerOne.moveRight();
+                    if (!player1Ai) playerOne.moveRight();
                     break;
                 case W:
-                    playerOne.rotate();
+                    if (!player1Ai) playerOne.rotate();
                     break;
                 case S:
-                    playerOne.setSoftDrop(true);
+                    if (!player1Ai) playerOne.setSoftDrop(true);
                     break;
                 case LEFT:
-                    (twoPlayerMode ? playerTwo : playerOne).moveLeft();
+                    if (twoPlayerMode) {
+                        if (!player2Ai) playerTwo.moveLeft();
+                    } else if (!player1Ai) {
+                        playerOne.moveLeft();
+                    }
                     break;
                 case RIGHT:
-                    (twoPlayerMode ? playerTwo : playerOne).moveRight();
+                    if (twoPlayerMode) {
+                        if (!player2Ai) playerTwo.moveRight();
+                    } else if (!player1Ai) {
+                        playerOne.moveRight();
+                    }
                     break;
                 case UP:
-                    (twoPlayerMode ? playerTwo : playerOne).rotate();
+                    if (twoPlayerMode) {
+                        if (!player2Ai) playerTwo.rotate();
+                    } else if (!player1Ai) {
+                        playerOne.rotate();
+                    }
                     break;
                 case DOWN:
-                    (twoPlayerMode ? playerTwo : playerOne).setSoftDrop(true);
+                    if (twoPlayerMode) {
+                        if (!player2Ai) playerTwo.setSoftDrop(true);
+                    } else if (!player1Ai) {
+                        playerOne.setSoftDrop(true);
+                    }
                     break;
                 case P:
                     togglePauseAll();
@@ -159,10 +179,14 @@ public class Game {
         gameScene.addEventFilter(KeyEvent.KEY_RELEASED, event -> {
             switch (event.getCode()) {
                 case S:
-                    playerOne.setSoftDrop(false);
+                    if (!player1Ai) playerOne.setSoftDrop(false);
                     break;
                 case DOWN:
-                    (twoPlayerMode ? playerTwo : playerOne).setSoftDrop(false);
+                    if (twoPlayerMode) {
+                        if (!player2Ai) playerTwo.setSoftDrop(false);
+                    } else if (!player1Ai) {
+                        playerOne.setSoftDrop(false);
+                    }
                     break;
                 default:
                     break;

@@ -4,9 +4,7 @@ import javafx.geometry.HPos;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
@@ -19,7 +17,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -98,12 +95,6 @@ public class HighScores {
             GridPane.setHalignment(noScoresLabel, HPos.CENTER);
         }
 
-        // Creating Reset Button, which clears the top scores list
-        Button resetButton = new Button("Reset Scores");
-        resetButton.setStyle(MENU_BUTTON_STYLE);
-        resetButton.setPrefWidth(150);
-        resetButton.setOnAction(ignored -> confirmAndResetScores(stage, onBack));
-
         // Creating Back Button for High Scores Screen
         Button backButton = new Button("Back");
         backButton.setStyle(MENU_BUTTON_STYLE);
@@ -112,8 +103,7 @@ public class HighScores {
         // Returning user back to Main Menu
         backButton.setOnAction(ignored -> onBack.run());
 
-        // HBox places Reset and Back buttons side by side
-        HBox buttonRow = new HBox(20, resetButton, backButton);
+        HBox buttonRow = new HBox(20, backButton);
         buttonRow.setAlignment(Pos.CENTER);
 
         // VBox holds the High Scores Screen vertically
@@ -151,6 +141,7 @@ public class HighScores {
      */
     public static void addScore(String player, int score) {
         List<PlayerScore> scores = readScores();
+        scores.removeIf(existingScore -> existingScore.player().equalsIgnoreCase(player));
         scores.add(new PlayerScore(player, score));
 
         scores.sort(
@@ -163,23 +154,6 @@ public class HighScores {
         }
 
         writeScores(scores);
-    }
-
-    // Shows a confirmation dialog before wiping the top scores list
-    private static void confirmAndResetScores(Stage stage, Runnable onBack) {
-        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION,
-                "This will permanently clear all high scores. Continue?",
-                ButtonType.YES, ButtonType.NO);
-        confirm.setTitle("Reset High Scores");
-        confirm.setHeaderText(null);
-
-        Optional<ButtonType> result = confirm.showAndWait();
-
-        if (result.isPresent() && result.get() == ButtonType.YES) {
-            writeScores(new ArrayList<>());
-            // Refresh the screen so the cleared list is shown immediately
-            show(stage, onBack);
-        }
     }
 
     // Reading player identifiers and scores from JSON file

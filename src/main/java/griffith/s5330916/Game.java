@@ -18,6 +18,8 @@ import javafx.scene.media.MediaPlayer;
 import javafx.scene.media.AudioClip;
 
 import java.net.URL;
+import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
 
 public class Game {
 
@@ -49,6 +51,8 @@ public class Game {
     private boolean roundEnded = false;
     private boolean playerOneEnded = false;
     private boolean playerTwoEnded = false;
+
+    private VBox nameEntryBox;
 
     public Game(Stage stage, Runnable onBack) {
         this.stage = stage;
@@ -148,6 +152,12 @@ public class Game {
         bottomLayout.setPadding(new Insets(0, 20, 0, 20));
         bottomLayout.setMaxWidth(Double.MAX_VALUE);
 
+
+        // Area for entering the player's name after Game Over
+        nameEntryBox = new VBox(10);
+        nameEntryBox.setAlignment(Pos.CENTER);
+
+
         // VBox holds the Game Screen vertically
         VBox gameLayout = new VBox(20);
         gameLayout.setAlignment(Pos.CENTER);
@@ -157,7 +167,12 @@ public class Game {
         audioStatusLabel.setStyle("-fx-text-fill: yellow; -fx-font-size: 14px;");
 
         gameLayout.getChildren().addAll(
-                titleLabel, boardsLayout, audioStatusLabel, bottomLayout);
+                titleLabel,
+                boardsLayout,
+                nameEntryBox,
+                audioStatusLabel,
+                bottomLayout
+        );
 
         // Creating Scene for Game Screen. A single board needs less width than two.
         double sceneWidth = twoPlayerMode ? 1000 : 550;
@@ -347,6 +362,7 @@ public class Game {
     }
 
     private void handlePlayerGameOver(boolean isPlayerOne) {
+
         if (roundEnded) {
             return;
         }
@@ -355,18 +371,34 @@ public class Game {
             if (playerOneEnded) {
                 return;
             }
+
             playerOneEnded = true;
+
         } else {
             if (playerTwoEnded) {
                 return;
             }
+
             playerTwoEnded = true;
         }
 
         // End a single-player game immediately.
         if (!twoPlayerMode) {
+
             roundEnded = true;
             stopAll();
+
+            int finalScore = playerOne.getScore();
+
+            overallStatusLabel.setText(
+                    "Game Over - Score: " + finalScore
+            );
+
+            // If the score qualifies for the top 10, ask for the player's name
+            if (HighScores.isHighScore(finalScore)) {
+                showNameEntry(finalScore);
+            }
+
 
             if (soundEffectsEnabled) {
                 GAME_OVER_SOUND.play();
@@ -381,6 +413,7 @@ public class Game {
 
         // End a two-player game when both players have topped out.
         if (playerOneEnded && playerTwoEnded) {
+
             roundEnded = true;
             stopAll();
             resetServer();
@@ -393,17 +426,116 @@ public class Game {
             int scoreTwo = playerTwo.getScore();
 
             if (scoreOne > scoreTwo) {
-                overallStatusLabel.setText("Game Over - Player 1 Wins!");
+
+                overallStatusLabel.setText(
+                        "Game Over - Player 1 Wins!"
+                );
+
             } else if (scoreTwo > scoreOne) {
-                overallStatusLabel.setText("Game Over - Player 2 Wins!");
+
+                overallStatusLabel.setText(
+                        "Game Over - Player 2 Wins!"
+                );
+
             } else {
-                overallStatusLabel.setText("Game Over - It's a Tie!");
+
+                overallStatusLabel.setText(
+                        "Game Over - It's a Tie!"
+                );
             }
+
+            // Check both scores for the top 10
+            checkAndRecordHighScore(scoreOne);
+            checkAndRecordHighScore(scoreTwo);
+
         } else {
             // Allow the remaining player to continue.
             String toppedOutName = isPlayerOne ? "Player 1" : "Player 2";
             overallStatusLabel.setText(
                     toppedOutName + " topped out - game continues");
         }
+    }
+
+    private void checkAndRecordHighScore(int score) {
+        if (HighScores.isHighScore(score)) {
+            showNameEntry(score);
+        }
+    }
+
+
+    private void showNameEntry(int finalScore) {
+
+        // Clear any previous name-entry controls
+        nameEntryBox.getChildren().clear();
+
+        Label scoreMessage = new Label(
+                "Your score is " + finalScore
+        );
+
+        scoreMessage.setStyle(
+                "-fx-text-fill: yellow;" +
+                        "-fx-font-size: 18px;" +
+                        "-fx-font-weight: bold;"
+        );
+
+        Label nameMessage = new Label(
+                "Please enter your name (3 letters):"
+        );
+
+        nameMessage.setStyle(
+                "-fx-text-fill: white;" +
+                        "-fx-font-size: 14px;"
+        );
+
+        TextField nameField = new TextField();
+        nameField.setPromptText("ABC");
+        nameField.setMaxWidth(100);
+
+        Button saveButton = new Button("Save Score");
+
+        saveButton.setStyle(
+                "-fx-background-color: #555;" +
+                        "-fx-text-fill: yellow;" +
+                        "-fx-font-size: 14px;"
+        );
+
+        Label errorLabel = new Label("");
+        errorLabel.setStyle("-fx-text-fill: red;");
+
+        saveButton.setOnAction(event -> {
+
+            String playerName =
+                    nameField.getText().trim().toUpperCase();
+
+            // Must be exactly 3 letters
+            if (!playerName.matches("[A-Z]{3}")) {
+
+                errorLabel.setText(
+                        "Please enter exactly 3 letters."
+                );
+
+                return;
+            }
+
+            // Save the player's name and final score
+            HighScores.addScore(
+                    playerName,
+                    finalScore
+            );
+
+            // Show updated high scores
+            HighScores.show(
+                    stage,
+                    onBack
+            );
+        });
+
+        nameEntryBox.getChildren().addAll(
+                scoreMessage,
+                nameMessage,
+                nameField,
+                saveButton,
+                errorLabel
+        );
     }
 }

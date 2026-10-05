@@ -8,7 +8,7 @@
   "player1Ai": false,
   "player1Human": true,
   "player1External": false,
-  "player2Ai": true,
-  "player2Human": false,
+  "player2Ai": false,
+  "player2Human": true,
   "player2External": false
 }

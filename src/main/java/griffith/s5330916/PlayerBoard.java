@@ -76,8 +76,11 @@ public class PlayerBoard {
     // Preventing the game-over callback from firing more than once
     private boolean gameOverTriggered = false;
 
-    private int score = 0;
+    private final ScoreManager scoreManager = new ScoreManager();
+
     private Label scoreLabel;
+    private Label levelLabel;
+    private Label linesLabel;
     private Label statusLabel;
 
     private VBox view;
@@ -162,11 +165,29 @@ public class PlayerBoard {
         statusLabel = new Label("");
         statusLabel.setStyle("-fx-text-fill: yellow; -fx-font-size: 14px;");
 
-        // Creating score label for this player
+// Creating score information labels for this player
         scoreLabel = new Label("Score: 0");
-        scoreLabel.setStyle("-fx-text-fill: yellow; -fx-font-size: 14px; -fx-font-weight: bold;");
+        levelLabel = new Label("Level: 1");
+        linesLabel = new Label("Lines Erased: 0");
 
-        view = new VBox(10, nameLabel, boardStack, statusLabel, scoreLabel);
+        String infoStyle =
+                "-fx-text-fill: yellow;" +
+                        "-fx-font-size: 14px;" +
+                        "-fx-font-weight: bold;";
+
+        scoreLabel.setStyle(infoStyle);
+        levelLabel.setStyle(infoStyle);
+        linesLabel.setStyle(infoStyle);
+
+        view = new VBox(
+                10,
+                nameLabel,
+                boardStack,
+                statusLabel,
+                levelLabel,
+                scoreLabel,
+                linesLabel
+        );
         view.setAlignment(Pos.CENTER);
 
         // Creating timer which moves this player's piece down automatically
@@ -223,7 +244,7 @@ public class PlayerBoard {
     }
 
     public int getScore() {
-        return score;
+        return scoreManager.getScore();
     }
 
     public void setAiPlayer(boolean aiPlayer) {
@@ -266,6 +287,7 @@ public class PlayerBoard {
         }
     }
 
+    // Moving current piece left
     public void moveLeft() {
         movePieceHorizontal(-1);
     }
@@ -392,10 +414,11 @@ public class PlayerBoard {
 
             // Checking for completed rows and adding score
             int linesCleared = gameBoard.clearFullRows();
+
             if (linesCleared > 0) {
                 playSound(LINE_CLEAR_SOUND);
+                addScore(linesCleared);
             }
-            addScore(linesCleared);
 
             // Spawning another random piece
             spawnPiece();
@@ -516,26 +539,22 @@ public class PlayerBoard {
         renderGrid();
     }
 
-    // Adding score depending on number of lines cleared at once
+    // Updating score, level, and total lines whenever completed rows are cleared
     private void addScore(int linesCleared) {
-        switch (linesCleared) {
-            case 1:
-                score += 100;
-                break;
-            case 2:
-                score += 300;
-                break;
-            case 3:
-                score += 500;
-                break;
-            case 4:
-                score += 800;
-                break;
-            default:
-                break;
-        }
 
-        scoreLabel.setText("Score: " + score);
+        scoreManager.linesCleared(linesCleared);
+
+        scoreLabel.setText(
+                "Score: " + scoreManager.getScore()
+        );
+
+        levelLabel.setText(
+                "Level: " + scoreManager.getLevel()
+        );
+
+        linesLabel.setText(
+                "Lines Erased: " + scoreManager.getLinesErased()
+        );
     }
 
     // Updating appearance of this player's entire grid

@@ -11,20 +11,22 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
 import javafx.scene.media.AudioClip;
-
 import java.net.URL;
-import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import java.util.ArrayDeque;
+import java.util.Deque;
 
 public class Game {
 
     private final Stage stage;
     private final Runnable onBack;
+
     private MediaPlayer gameMusic;
     private boolean musicEnabled;
     private boolean soundEffectsEnabled;
@@ -44,15 +46,23 @@ public class Game {
     // Whether this match is being played with one board or two boards side by side
     private boolean twoPlayerMode;
 
+    // Each player runs on their own independent board.
+    // playerTwo stays null for the entire match when running in single player mode.
     private PlayerBoard playerOne;
     private PlayerBoard playerTwo;
 
     private boolean paused = false;
+
+    // Preventing the win/tie message from being overwritten once decided
     private boolean roundEnded = false;
+
+    // Tracking which boards have topped out so the match can continue for
+    // whichever player is still alive in Two Player Mode
     private boolean playerOneEnded = false;
     private boolean playerTwoEnded = false;
 
     private VBox nameEntryBox;
+    private final Deque<Integer> pendingHighScores = new ArrayDeque<>();
 
     public Game(Stage stage, Runnable onBack) {
         this.stage = stage;
@@ -78,6 +88,8 @@ public class Game {
         Label titleLabel = new Label(twoPlayerMode ? "Tetris - 2 Player" : "Tetris - 1 Player");
         titleLabel.setStyle("-fx-font-size: 30px; -fx-font-weight: bold; -fx-text-fill: yellow;");
 
+        // Shared piece generator so that, in Two Player Mode, both boards
+        // receive the exact same sequence of pieces
         PieceSequence pieceSequence = new PieceSequence();
 
         // Creating player one's board. In single player mode this board accepts
@@ -87,6 +99,7 @@ public class Game {
                 () -> handlePlayerGameOver(true), pieceSequence);
         playerOne.setAiPlayer(player1Ai);
 
+        // Only creating a second board when Two Player Mode is enabled
         HBox boardsLayout;
         if (twoPlayerMode) {
             playerTwo = new PlayerBoard("Player 2 (Arrow Keys)", fieldHeight, fieldWidth,
@@ -99,9 +112,11 @@ public class Game {
         }
         boardsLayout.setAlignment(Pos.CENTER);
 
+        // Label used to display Paused or the eventual match result
         overallStatusLabel = new Label("");
         overallStatusLabel.setStyle("-fx-text-fill: yellow; -fx-font-size: 18px; -fx-font-weight: bold;");
 
+        // Creating Back Button for Game Screen
         Button backButton = new Button("Back");
         String menuButtonStyle = "-fx-font-size: 20px; -fx-background-color: #555; -fx-text-fill: yellow;";
         backButton.setStyle(menuButtonStyle);
@@ -128,7 +143,6 @@ public class Game {
             confirmation.setTitle("Return to Main Menu");
             confirmation.setHeaderText("Exit Current Game?");
             confirmation.initOwner(stage);
-
             ButtonType result = confirmation.showAndWait().orElse(ButtonType.NO);
 
             if (result == ButtonType.YES) {
@@ -156,6 +170,10 @@ public class Game {
         // Area for entering the player's name after Game Over
         nameEntryBox = new VBox(10);
         nameEntryBox.setAlignment(Pos.CENTER);
+        nameEntryBox.setPadding(new Insets(16));
+        nameEntryBox.setStyle("-fx-background-color: black; -fx-border-color: yellow;");
+        nameEntryBox.setVisible(false);
+        nameEntryBox.setManaged(false);
 
 
         // VBox holds the Game Screen vertically
@@ -174,9 +192,12 @@ public class Game {
                 bottomLayout
         );
 
+        StackPane gameRoot = new StackPane(gameLayout, nameEntryBox);
+        StackPane.setAlignment(nameEntryBox, Pos.CENTER);
+
         // Creating Scene for Game Screen. A single board needs less width than two.
         double sceneWidth = twoPlayerMode ? 1000 : 550;
-        Scene gameScene = new Scene(gameLayout, sceneWidth, 700);
+        Scene gameScene = new Scene(gameRoot, sceneWidth, 700);
 
         // Routing keyboard controls.
         // Two Player Mode: Player 1 uses WASD, Player 2 uses Arrow Keys.
@@ -394,10 +415,8 @@ public class Game {
                     "Game Over - Score: " + finalScore
             );
 
-            // If the score qualifies for the top 10, ask for the player's name
-            if (HighScores.isHighScore(finalScore)) {
-                showNameEntry(finalScore);
-            }
+            pendingHighScores.addLast(finalScore);
+            showNextNameEntry();
 
 
             if (soundEffectsEnabled) {
@@ -444,9 +463,9 @@ public class Game {
                 );
             }
 
-            // Check both scores for the top 10
-            checkAndRecordHighScore(scoreOne);
-            checkAndRecordHighScore(scoreTwo);
+            pendingHighScores.addLast(scoreOne);
+            pendingHighScores.addLast(scoreTwo);
+            showNextNameEntry();
 
         } else {
             // Allow the remaining player to continue.
@@ -456,10 +475,12 @@ public class Game {
         }
     }
 
-    private void checkAndRecordHighScore(int score) {
-        if (HighScores.isHighScore(score)) {
-            showNameEntry(score);
+    private boolean showNextNameEntry() {
+        if (!pendingHighScores.isEmpty()) {
+            showNameEntry(pendingHighScores.removeFirst());
+            return true;
         }
+        return false;
     }
 
 
@@ -467,6 +488,8 @@ public class Game {
 
         // Clear any previous name-entry controls
         nameEntryBox.getChildren().clear();
+        nameEntryBox.setManaged(true);
+        nameEntryBox.setVisible(true);
 
         Label scoreMessage = new Label(
                 "Your score is " + finalScore
@@ -523,11 +546,9 @@ public class Game {
                     finalScore
             );
 
-            // Show updated high scores
-            HighScores.show(
-                    stage,
-                    onBack
-            );
+            if (!showNextNameEntry()) {
+                HighScores.show(stage, onBack);
+            }
         });
 
         nameEntryBox.getChildren().addAll(

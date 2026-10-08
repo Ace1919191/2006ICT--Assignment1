@@ -136,8 +136,8 @@ public class HighScores {
     }
 
     /**
-     * Adds a new score, re-sorts, truncates to the top MAX_SCORES entries,
-     * and persists the result to scores.json.
+        * Adds a new score, re-sorts, and persists all named scores to scores.json.
+        * The high-score screen displays only the top MAX_SCORES entries.
      */
     public static void addScore(String player, int score) {
         List<PlayerScore> scores = readScores();
@@ -148,10 +148,6 @@ public class HighScores {
                 (firstScore, secondScore) ->
                         Integer.compare(secondScore.score(), firstScore.score())
         );
-
-        if (scores.size() > MAX_SCORES) {
-            scores = scores.subList(0, MAX_SCORES);
-        }
 
         writeScores(scores);
     }

@@ -11,10 +11,13 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import java.util.ArrayDeque;
+import java.util.Deque;
 
 public class Game {
 
@@ -41,6 +44,7 @@ public class Game {
 
     private Label overallStatusLabel;
     private VBox nameEntryBox;
+    private final Deque<Integer> pendingHighScores = new ArrayDeque<>();
 
     public Game(Stage stage, Runnable onBack) {
         this.stage = stage;
@@ -149,6 +153,10 @@ public class Game {
         // Area for entering the player's name after Game Over
         nameEntryBox = new VBox(10);
         nameEntryBox.setAlignment(Pos.CENTER);
+        nameEntryBox.setPadding(new Insets(16));
+        nameEntryBox.setStyle("-fx-background-color: black; -fx-border-color: yellow;");
+        nameEntryBox.setVisible(false);
+        nameEntryBox.setManaged(false);
 
 
         // VBox holds the Game Screen vertically
@@ -159,13 +167,15 @@ public class Game {
         gameLayout.getChildren().addAll(
                 titleLabel,
                 boardsLayout,
-                nameEntryBox,
                 bottomLayout
         );
 
+        StackPane gameRoot = new StackPane(gameLayout, nameEntryBox);
+        StackPane.setAlignment(nameEntryBox, Pos.CENTER);
+
         // Creating Scene for Game Screen. A single board needs less width than two.
         double sceneWidth = twoPlayerMode ? 1000 : 550;
-        Scene gameScene = new Scene(gameLayout, sceneWidth, 700);
+        Scene gameScene = new Scene(gameRoot, sceneWidth, 700);
 
         // Routing keyboard controls.
         // Two Player Mode: Player 1 uses WASD, Player 2 uses Arrow Keys.
@@ -312,10 +322,8 @@ public class Game {
                     "Game Over - Score: " + finalScore
             );
 
-            // If the score qualifies for the top 10, ask for the player's name
-            if (HighScores.isHighScore(finalScore)) {
-                showNameEntry(finalScore);
-            }
+            pendingHighScores.addLast(finalScore);
+            showNextNameEntry();
 
             return;
         }
@@ -348,9 +356,9 @@ public class Game {
                 );
             }
 
-            // Check both scores for the top 10
-            checkAndRecordHighScore(scoreOne);
-            checkAndRecordHighScore(scoreTwo);
+            pendingHighScores.addLast(scoreOne);
+            pendingHighScores.addLast(scoreTwo);
+            showNextNameEntry();
 
         } else {
 
@@ -365,10 +373,12 @@ public class Game {
         }
     }
 
-    private void checkAndRecordHighScore(int score) {
-        if (HighScores.isHighScore(score)) {
-            showNameEntry(score);
+    private boolean showNextNameEntry() {
+        if (!pendingHighScores.isEmpty()) {
+            showNameEntry(pendingHighScores.removeFirst());
+            return true;
         }
+        return false;
     }
 
 
@@ -376,6 +386,8 @@ public class Game {
 
         // Clear any previous name-entry controls
         nameEntryBox.getChildren().clear();
+        nameEntryBox.setManaged(true);
+        nameEntryBox.setVisible(true);
 
         Label scoreMessage = new Label(
                 "Your score is " + finalScore
@@ -432,11 +444,9 @@ public class Game {
                     finalScore
             );
 
-            // Show updated high scores
-            HighScores.show(
-                    stage,
-                    onBack
-            );
+            if (!showNextNameEntry()) {
+                HighScores.show(stage, onBack);
+            }
         });
 
         nameEntryBox.getChildren().addAll(

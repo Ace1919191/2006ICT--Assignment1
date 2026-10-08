@@ -57,7 +57,7 @@ public class PlayerBoard {
 
     private GameBoard gameBoard;
     private PieceController pieceController;
-
+    private boolean aiMoveApplied;
     private double cellSize;
 
     // Each Pane represents one visible space in this player's grid
@@ -94,6 +94,9 @@ public class PlayerBoard {
     private Label statusLabel;
 
     private VBox view;
+
+    private boolean humanPlayer = true;
+    private boolean externalPlayer = false;
 
     // AI Variables
     private boolean aiPlayer = false;
@@ -267,6 +270,8 @@ public class PlayerBoard {
         return scoreManager.getScore();
     }
 
+    public void setHumanPlayer(boolean human) { this.humanPlayer = human; }
+    public void setExternalPlayer(boolean external) { this.externalPlayer = external; }
     public void setAiPlayer(boolean aiPlayer) {
         this.aiPlayer = aiPlayer;
     }
@@ -283,7 +288,9 @@ public class PlayerBoard {
 
         if (!aiRotationComplete) {
             for (int i = 0; i < pendingAIMove.opRotate(); i++) {
-                pieceController.rotatePiece();
+                if (pieceController.rotatePiece()) {
+                    playSound(ROTATE_SOUND);
+                }
             }
             updateFallingPieceShape();
             aiRotationComplete = true;
@@ -302,37 +309,93 @@ public class PlayerBoard {
         // it into place, so AI pieces glide the same way human pieces do
         animateHorizontalMovement();
 
-        if (piece.getAnchorColumn() == targetColumn) {
+        if (aiRotationComplete && piece.getAnchorColumn() == targetColumn) {
             fallTimer.setRate(5);
+        }
+
+    }
+
+    private OpMove evaluateLocalMove() {
+        int[][] cells = gameBoard.getServerCells();
+        ActivePiece piece = pieceController.getCurrentPiece();
+        int[][] shape = copyShape(piece.getCurrentPieceShape());
+
+        int bestColumn = piece.getAnchorColumn();
+        int bestRotation = 0;
+        double bestScore = Double.NEGATIVE_INFINITY;
+
+        for (int rotation = 0; rotation < 4; rotation++) {
+            for (int column = 0; column < fieldWidth; column++) {
+                int landingRow = findLandingRowLocal(cells, shape, column);
+
+                if (landingRow < 0) continue;
+
+                int[][] simulated = copyBoardLocal(cells);
+                lockShapeLocal(simulated, shape, landingRow, column);
+
+                int linesCleared = clearFullRowsLocal(simulated);
+                double score = evaluateBoardLocal(simulated, linesCleared);
+
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestColumn = column;
+                    bestRotation = rotation;
+                }
+            }
+
+            shape = rotateShapeLocal(shape);
+        }
+
+        return new OpMove(bestColumn, bestRotation);
+    }
+
+
+    private void applyLocalAIMove() {
+        if (!aiMoveApplied) {
+            aiMoveApplied = true;
+            pendingAIMove = evaluateLocalMove();
+            aiRotationComplete = false;
+        }
+        if (pendingAIMove == null) {
+            return;
+        }
+        applyAIMove();
+        if (pieceController.getCurrentPiece().getAnchorColumn() == pendingAIMove.opX()) {
+            pendingAIMove = null;
         }
     }
 
+
     // Moving current piece left
     public void moveLeft() {
+        if (!humanPlayer && !aiPlayer) return;
         movePieceHorizontal(-1);
     }
 
     // Moving current piece right
     public void moveRight() {
+        if (!humanPlayer && !aiPlayer) return;
         movePieceHorizontal(1);
     }
 
     // Rotating current piece 90 degrees clockwise around anchor block
     public void rotate() {
-        if (paused || gameOverTriggered) {
+        if (paused || gameOverTriggered || (!humanPlayer && !aiPlayer)) {
             return;
         }
 
         if (pieceController.rotatePiece()) {
             updateFallingPieceShape();
             playSound(ROTATE_SOUND);
-            sendCurrentStateToServer();
+            if (externalPlayer) {
+                sendCurrentStateToServer();
+            }
         }
     }
 
     // Turning soft drop on or off for this player
     public void setSoftDrop(boolean active) {
-        if (paused || gameOverTriggered) {
+        if (paused || gameOverTriggered || (!humanPlayer && !aiPlayer)) {
             return;
         }
 
@@ -398,19 +461,25 @@ public class PlayerBoard {
         visualFromRow = anchorRow;
         fallingPieceGroup.setTranslateX(anchorColumn * cellSize);
         fallingPieceGroup.setTranslateY(anchorRow * cellSize);
-
         renderGrid();
+        fallTimer.playFromStart();
+
 
         if (aiPlayer) {
-            pendingAIMove = null;
+            aiMoveApplied = false;
+            pendingAIMove = evaluateLocalMove();
             aiRotationComplete = false;
-            waitingForAIMove = true;
+            waitingForAIMove = false;
             fallTimer.setRate(1);
         }
 
-        // Human boards use the reply only for the server mirror.
-        // AI boards use this spawn snapshot as their one move request for the piece.
-        sendCurrentStateToServer();
+        if (externalPlayer) {
+            pendingAIMove = null;
+            aiRotationComplete = false;
+            waitingForAIMove = true;
+            requestAIMove();
+            fallTimer.setRate(1);
+        }
     }
 
     private void movePieceDown() {
@@ -419,10 +488,10 @@ public class PlayerBoard {
         }
 
         if (aiPlayer) {
-            if (waitingForAIMove || pendingAIMove == null) {
-                return;
-            }
+            applyLocalAIMove();
+        }
 
+        if (externalPlayer && !waitingForAIMove && pendingAIMove != null) {
             applyAIMove();
         }
 
@@ -436,7 +505,9 @@ public class PlayerBoard {
             // follows both human and AI-controlled pieces.
             // For AI players, later returned OpMove values are ignored because
             // waitingForAIMove is already false after the spawn decision arrives.
-            sendCurrentStateToServer();
+            if (externalPlayer) {
+                sendCurrentStateToServer();
+            }
         } else {
             // Locking piece into grid once it can no longer move down
             lockPiece();
@@ -450,6 +521,7 @@ public class PlayerBoard {
                 addScore(linesCleared);
             }
 
+            fallTimer.playFromStart();
             // Spawning another random piece
             spawnPiece();
         }
@@ -475,10 +547,29 @@ public class PlayerBoard {
 
         if (pieceController.movePieceHorizontal(direction)) {
             animateHorizontalMovement();
-            sendCurrentStateToServer();
+            if (externalPlayer) {
+                sendCurrentStateToServer();
+            }
         }
     }
 
+    private void requestAIMove() {
+        ActivePiece piece = pieceController.getCurrentPiece();
+        if (piece == null) return;
+
+        pendingServerSnapshot = new PureGame(
+                playerName,
+                fieldWidth,
+                fieldHeight,
+                gameBoard.getServerCells(),
+                copyShape(piece.getCurrentPieceShape()),
+                nextPieceType.createShape(),
+                piece.getAnchorRow(),
+                piece.getAnchorColumn()
+        );
+        waitingForAIMove = true;
+        startServerWorkerIfNeeded();
+    }
     private void sendCurrentStateToServer() {
         if (gameOverTriggered || nextPieceType == null || serverExecutor.isShutdown()) {
             return;
@@ -529,6 +620,11 @@ public class PlayerBoard {
                         + returnedMove.opX() + ", rotations=" + returnedMove.opRotate());
 
                     if (aiPlayer && waitingForAIMove) {
+                        pendingAIMove = returnedMove;
+                        waitingForAIMove = false;
+                    }
+
+                    if (externalPlayer && waitingForAIMove) {
                         pendingAIMove = returnedMove;
                         waitingForAIMove = false;
                     }
@@ -672,4 +768,124 @@ public class PlayerBoard {
         return "-fx-background-color: " + colour + ";"
                 + "-fx-border-color: black; -fx-border-width: 2;";
     }
+
+    private int findLandingRowLocal(int[][] cells, int[][] shape, int column) {
+        int row = pieceController.getCurrentPiece().getAnchorRow();
+        while (canPlaceLocal(cells, shape, row + 1, column)) {
+            row++;
+        }
+        return canPlaceLocal(cells, shape, row, column) ? row : -1;
+    }
+
+    private boolean canPlaceLocal(int[][] cells, int[][] shape, int row, int column) {
+        for (int[] block : shape) {
+            int r = row + block[0];
+            int c = column + block[1];
+
+            if (r < 0 || r >= fieldHeight || c < 0 || c >= fieldWidth) return false;
+            if (cells[r][c] != 0) return false;
+        }
+        return true;
+    }
+
+    private int[][] rotateShapeLocal(int[][] shape) {
+        int[][] rotated = new int[shape.length][2];
+        for (int i = 0; i < shape.length; i++) {
+            rotated[i][0] = shape[i][1];
+            rotated[i][1] = -shape[i][0];
+        }
+        return rotated;
+    }
+
+    private int[][] copyBoardLocal(int[][] board) {
+        int[][] copy = new int[board.length][];
+
+        for (int row = 0; row < board.length; row++) {
+            copy[row] = board[row].clone();
+        }
+
+        return copy;
+    }
+    private void lockShapeLocal(int[][] board, int[][] shape, int row, int column) {
+        for (int[] block : shape) {
+            board[row + block[0]][column + block[1]] = 1;
+        }
+    }
+
+    private int clearFullRowsLocal(int[][] board) {
+        int height = board.length;
+        int width = board[0].length;
+        int linesCleared = 0;
+
+        for (int row = height - 1; row >= 0; row--) {
+            boolean full = true;
+
+            for (int column = 0; column < width; column++) {
+                if (board[row][column] == 0) {
+                    full = false;
+                    break;
+                }
+            }
+
+            if (!full) {
+                continue;
+            }
+
+            linesCleared++;
+
+            for (int moveRow = row; moveRow > 0; moveRow--) {
+                System.arraycopy(board[moveRow - 1], 0, board[moveRow], 0, width);
+            }
+
+            for (int column = 0; column < width; column++) {
+                board[0][column] = 0;
+            }
+
+            row++;
+        }
+
+        return linesCleared;
+    }
+
+
+    private double evaluateBoardLocal(int[][] board, int cleared) {
+        int holes = 0;
+        int bump = 0;
+        int[] colHeights = new int[fieldWidth];
+
+
+        for (int x = 0; x < fieldWidth; x++) {
+            boolean seenBlock = false;
+
+            for (int y = 0; y < fieldHeight; y++) {
+                if (board[y][x] != 0) {
+                    seenBlock = true;
+                    colHeights[x] = fieldHeight - y;
+                } else if (seenBlock) {
+                    holes++;
+                }
+            }
+        }
+
+        for (int x = 0; x < fieldWidth - 1; x++) {
+            bump += Math.abs(colHeights[x] - colHeights[x + 1]);
+        }
+
+        int maxHeight = max(colHeights);
+
+        return (180 * cleared)
+                - (25 * maxHeight)
+                - (18 * bump)
+                - (80 * holes);
+    }
+
+    private int max(int[] arr) {
+        int highest = 0;
+        for (int v : arr) {
+            if (v > highest) highest = v;
+        }
+        return highest;
+    }
+
 }
+

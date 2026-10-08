@@ -25,19 +25,12 @@ public class Main extends Application {
     //Calling method decorator @Override tells the class not to inherit the start method from Application
     @Override
     public void start(Stage initialStage) {
-        startServer();
 
         Stage splashStage = new Stage(StageStyle.UNDECORATED);
         showSplashScreen(splashStage, () -> showMainWindow(initialStage));
     }
     private MediaPlayer menuMusic;
 
-    private void startServer() {
-        Thread serverThread = new Thread(() -> TetrisServer.main(new String[0]), "TetrisServer");
-
-        serverThread.setDaemon(true);
-        serverThread.start();
-    }
 
     private void showSplashScreen(Stage stage, Runnable onFinished) {
         // Get JPG from resources

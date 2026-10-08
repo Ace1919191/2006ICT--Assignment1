@@ -83,6 +83,10 @@ public class Game {
         twoPlayerMode = settings.isTwoPlayerMode();
         boolean player1Ai = settings.isPlayer1Ai();
         boolean player2Ai = settings.isPlayer2Ai();
+        boolean player1Human = settings.isPlayer1Human();
+        boolean player2Human = settings.isPlayer2Human();
+        boolean player1External = settings.isPlayer1External();
+        boolean player2External = settings.isPlayer2External();
 
         // Creating title for Game Screen, reflecting the selected player count
         Label titleLabel = new Label(twoPlayerMode ? "Tetris - 2 Player" : "Tetris - 1 Player");
@@ -98,6 +102,9 @@ public class Game {
         playerOne = new PlayerBoard(playerOneLabel, fieldHeight, fieldWidth,
                 () -> handlePlayerGameOver(true), pieceSequence);
         playerOne.setAiPlayer(player1Ai);
+        playerOne.setHumanPlayer(player1Human);
+        playerOne.setExternalPlayer(player1External);
+
 
         // Only creating a second board when Two Player Mode is enabled
         HBox boardsLayout;
@@ -105,6 +112,9 @@ public class Game {
             playerTwo = new PlayerBoard("Player 2 (Arrow Keys)", fieldHeight, fieldWidth,
                     () -> handlePlayerGameOver(false), pieceSequence);
             playerTwo.setAiPlayer(player2Ai);
+            playerTwo.setHumanPlayer(player2Human);
+            playerTwo.setExternalPlayer(player2External);
+
             boardsLayout = new HBox(60, playerOne.getView(), playerTwo.getView());
         } else {
             playerTwo = null;
@@ -206,45 +216,45 @@ public class Game {
             switch (event.getCode()) {
                 // Player 1 controls (always active)
                 case A:
-                    if (!player1Ai) playerOne.moveLeft();
+                    if (player1Human) playerOne.moveLeft();
                     break;
                 case D:
-                    if (!player1Ai) playerOne.moveRight();
+                    if (player1Human) playerOne.moveRight();
                     break;
                 case W:
-                    if (!player1Ai) playerOne.rotate();
+                    if (player1Human) playerOne.rotate();
                     break;
                 case Z:
-                    if (!player1Ai) playerOne.setSoftDrop(true);
+                    if (player1Human) playerOne.setSoftDrop(true);
                     break;
 
                 // Player 2 controls in Two Player Mode; fall back to controlling
                 // Player 1 in Single Player Mode so Arrow Keys also work.
                 case LEFT:
                     if (twoPlayerMode) {
-                        if (!player2Ai) playerTwo.moveLeft();
-                    } else if (!player1Ai) {
+                        if (player2Human) playerTwo.moveLeft();
+                    } else if (player1Human) {
                         playerOne.moveLeft();
                     }
                     break;
                 case RIGHT:
                     if (twoPlayerMode) {
-                        if (!player2Ai) playerTwo.moveRight();
-                    } else if (!player1Ai) {
+                        if (player2Human) playerTwo.moveRight();
+                    } else if (player1Human) {
                         playerOne.moveRight();
                     }
                     break;
                 case UP:
                     if (twoPlayerMode) {
-                        if (!player2Ai) playerTwo.rotate();
-                    } else if (!player1Ai) {
+                        if (player2Human) playerTwo.rotate();
+                    } else if (player1Human) {
                         playerOne.rotate();
                     }
                     break;
                 case DOWN:
                     if (twoPlayerMode) {
-                        if (!player2Ai) playerTwo.setSoftDrop(true);
-                    } else if (!player1Ai) {
+                        if (player2Human) playerTwo.setSoftDrop(true);
+                    } else if (player1Human) {
                         playerOne.setSoftDrop(true);
                     }
                     break;
@@ -281,12 +291,12 @@ public class Game {
         gameScene.addEventFilter(KeyEvent.KEY_RELEASED, event -> {
             switch (event.getCode()) {
                 case Z:
-                    if (!player1Ai) playerOne.setSoftDrop(false);
+                    if (player1Human) playerOne.setSoftDrop(false);
                     break;
                 case DOWN:
                     if (twoPlayerMode) {
-                        if (!player2Ai) playerTwo.setSoftDrop(false);
-                    } else if (!player1Ai) {
+                        if (player2Human) playerTwo.setSoftDrop(false);
+                    } else if (player1Human) {
                         playerOne.setSoftDrop(false);
                     }
                     break;

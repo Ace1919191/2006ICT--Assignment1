@@ -20,22 +20,34 @@ public final class GameSettings {
     private static final boolean DEFAULT_TWO_PLAYER_MODE = true;
     private static final boolean DEFAULT_AI_PLAYER1 = false;
     private static final boolean DEFAULT_AI_PLAYER2 = false;
+    private static final boolean DEFAULT_PLAYER1_HUMAN = true;
+    private static final boolean DEFAULT_PLAYER2_HUMAN = true;
+    private static final boolean DEFAULT_EXTERNAL_PLAYER1 = false;
+    private static final boolean DEFAULT_EXTERNAL_PLAYER2 = false;
 
     private final int fieldHeight;
     private final int fieldWidth;
     private final boolean twoPlayerMode;
     private final boolean player1Ai;
     private final boolean player2Ai;
+    private final boolean player1Human;
+    private final boolean player2Human;
+    private final boolean player1External;
+    private final boolean player2External;
     private final boolean music;
     private final boolean soundEffects;
 
     private GameSettings(int fieldHeight, int fieldWidth, boolean twoPlayerMode, boolean player1Ai,
-                         boolean player2Ai, boolean music, boolean soundEffects) {
+                         boolean player2Ai, boolean player1Human, boolean player2Human, boolean player1External, boolean player2External, boolean music, boolean soundEffects) {
         this.fieldHeight = fieldHeight;
         this.fieldWidth = fieldWidth;
         this.twoPlayerMode = twoPlayerMode;
         this.player1Ai = player1Ai;
         this.player2Ai = player2Ai;
+        this.player1Human = player1Human;
+        this.player2Human = player2Human;
+        this.player1External = player1External;
+        this.player2External = player2External;
         this.music = music;
         this.soundEffects = soundEffects;
     }
@@ -50,7 +62,12 @@ public final class GameSettings {
         boolean twoPlayerMode = getBoolean(json, "twoPlayerMode", DEFAULT_TWO_PLAYER_MODE);
         boolean player1Ai = getBoolean(json, "player1Ai", DEFAULT_AI_PLAYER1);
         boolean player2Ai = getBoolean(json, "player2Ai", DEFAULT_AI_PLAYER2);
-        return new GameSettings(fieldHeight, fieldWidth, twoPlayerMode, player1Ai, player2Ai, music, soundEffects);
+        boolean player1Human = getBoolean(json, "player1Human", DEFAULT_PLAYER1_HUMAN);
+        boolean player2Human = getBoolean(json, "player2Human", DEFAULT_PLAYER2_HUMAN);
+        boolean player1External = getBoolean(json, "player1External", DEFAULT_EXTERNAL_PLAYER1);
+        boolean player2External = getBoolean(json, "player2External", DEFAULT_EXTERNAL_PLAYER2);
+
+        return new GameSettings(fieldHeight, fieldWidth, twoPlayerMode, player1Ai, player2Ai, player1Human, player2Human, player1External, player2External, music, soundEffects);
     }
 
     public int getFieldHeight() {
@@ -68,18 +85,19 @@ public final class GameSettings {
     public boolean isMusicEnabled() {
         return music;
     }
-
     public boolean isSoundEffectsEnabled() {
         return soundEffects;
     }
-
     public boolean isPlayer1Ai() {
         return player1Ai;
     }
     public boolean isPlayer2Ai()  {
         return player2Ai;
     }
-
+    public boolean isPlayer1Human() { return player1Human; }
+    public boolean isPlayer2Human() { return player2Human; }
+    public boolean isPlayer1External() { return player1External; }
+    public boolean isPlayer2External() { return player2External; }
 
     private static String readSettingsFile() {
         try {

@@ -31,11 +31,10 @@ public final class TetrisServer {
     private static final int PORT = 3000;
 
     // TRUE = open the live server mirror, FALSE = console-only server
-    private static final boolean SHOW_SERVER_WINDOW = false;
+    private static final boolean SHOW_SERVER_WINDOW = true;
 
     // TRUE prints every received state. Leave FALSE during normal play to avoid console spam.
     private static final boolean VERBOSE_STATE_LOGGING = false;
-
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static ServerGameWindow serverGameWindow;
 

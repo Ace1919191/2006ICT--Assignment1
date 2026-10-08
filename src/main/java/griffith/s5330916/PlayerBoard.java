@@ -1,6 +1,7 @@
 package griffith.s5330916;
 
 import javafx.animation.Animation;
+import javafx.animation.AnimationTimer;
 import javafx.animation.Interpolator;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -37,6 +38,9 @@ public class PlayerBoard {
                     "-fx-border-color: #555;" +
                     "-fx-border-width: 0.5;";
 
+    // Base time between automatic fall steps at normal speed (rate 1)
+    private static final double FALL_INTERVAL_MS = 500;
+
     private final String playerName;
     private final int fieldHeight;
     private final int fieldWidth;
@@ -65,7 +69,13 @@ public class PlayerBoard {
 
     // Animations used when moving the falling piece
     private TranslateTransition horizontalAnimation;
-    private TranslateTransition verticalAnimation;
+
+    // Row the piece is visually sliding away from during the current fall step
+    private int visualFromRow;
+
+    // Updates the falling piece's vertical position every frame,
+    // using the fall timer's own play head so movement and animation stay in sync
+    private AnimationTimer verticalRenderer;
 
     // Timer controls how often this player's piece falls
     private Timeline fallTimer;
@@ -191,8 +201,16 @@ public class PlayerBoard {
         view.setAlignment(Pos.CENTER);
 
         // Creating timer which moves this player's piece down automatically
-        fallTimer = new Timeline(new KeyFrame(Duration.millis(500), ignored -> movePieceDown()));
+        fallTimer = new Timeline(new KeyFrame(Duration.millis(FALL_INTERVAL_MS), ignored -> movePieceDown()));
         fallTimer.setCycleCount(Animation.INDEFINITE);
+
+        // Creating per-frame renderer which positions the falling piece vertically
+        verticalRenderer = new AnimationTimer() {
+            @Override
+            public void handle(long now) {
+                updateVerticalPosition();
+            }
+        };
     }
 
     // Returning the assembled view so Game.java can place it in the layout
@@ -204,6 +222,7 @@ public class PlayerBoard {
     public void start() {
         spawnPiece();
         fallTimer.play();
+        verticalRenderer.start();
     }
 
     // Pausing this player's timer and animations
@@ -235,6 +254,7 @@ public class PlayerBoard {
     // Stopping this player's board completely, e.g. when leaving the game
     public void stop() {
         fallTimer.stop();
+        verticalRenderer.stop();
         stopPieceAnimations();
         softDropActive = false;
         pendingServerSnapshot = null;
@@ -278,8 +298,8 @@ public class PlayerBoard {
             pieceController.movePieceHorizontal(-1);
         }
 
-        fallingPieceGroup.setTranslateX(piece.getAnchorColumn() * cellSize);
-        fallingPieceGroup.setTranslateY(piece.getAnchorRow() * cellSize);
+        // Animating from the piece's current visual position instead of snapping
+        // it into place, so AI pieces glide the same way human pieces do
         animateHorizontalMovement();
 
         if (piece.getAnchorColumn() == targetColumn) {
@@ -322,6 +342,9 @@ public class PlayerBoard {
                 softDropActive = true;
                 fallTimer.setRate(5);
                 movePieceDown();
+                // Restarting the cycle so the next automatic drop is a full
+                // interval away and the visual slide starts from the beginning
+                fallTimer.playFromStart();
             }
         } else {
             softDropActive = false;
@@ -355,6 +378,7 @@ public class PlayerBoard {
         // Ending this player's game if new piece cannot fit onto grid
         if (!gameBoard.canPlacePiece(currentPiece, anchorRow, anchorColumn)) {
             fallTimer.stop();
+            verticalRenderer.stop();
             stopPieceAnimations();
             fallingPieceGroup.getChildren().clear();
             statusLabel.setText("Game Over");
@@ -369,6 +393,9 @@ public class PlayerBoard {
         // Resetting animations and drawing new falling piece at spawn position
         stopPieceAnimations();
         updateFallingPieceShape();
+
+        // New piece starts stationary at its spawn row until the first fall step
+        visualFromRow = anchorRow;
         fallingPieceGroup.setTranslateX(anchorColumn * cellSize);
         fallingPieceGroup.setTranslateY(anchorRow * cellSize);
 
@@ -399,8 +426,11 @@ public class PlayerBoard {
             applyAIMove();
         }
 
+        int previousRow = pieceController.getCurrentPiece().getAnchorRow();
+
         if (pieceController.movePieceDown()) {
-            animateVerticalMovement();
+            // Sliding visually from the previous row to the new one over this fall step
+            visualFromRow = previousRow;
 
             // Keep sending the current position so the server-side live mirror
             // follows both human and AI-controlled pieces.
@@ -602,49 +632,39 @@ public class PlayerBoard {
         horizontalAnimation.play();
     }
 
-    // Smoothly moving falling piece down towards its next grid position
-    private void animateVerticalMovement() {
-        if (verticalAnimation != null) {
-            verticalAnimation.stop();
+    // Positioning the falling piece between its previous and current row,
+    // based on how far the fall timer is through its current step.
+    // Because the position comes from the timer itself, soft drop, pausing
+    // and restarting the timer are all reflected automatically.
+    private void updateVerticalPosition() {
+        ActivePiece piece = pieceController.getCurrentPiece();
+        if (piece == null) {
+            return;
         }
 
-        double animationTime = 480;
+        double progress = fallTimer.getCurrentTime().toMillis() / FALL_INTERVAL_MS;
+        progress = Math.max(0, Math.min(1, progress));
 
-        // Shortening animation while soft drop is accelerating the piece
-        if (fallTimer.getRate() > 1) {
-            animationTime = 90;
-        }
-
-        verticalAnimation = new TranslateTransition(Duration.millis(animationTime), fallingPieceGroup);
-        verticalAnimation.setToY(pieceController.getCurrentPiece().getAnchorRow() * cellSize);
-        verticalAnimation.setInterpolator(Interpolator.LINEAR);
-        verticalAnimation.play();
+        double visualRow = visualFromRow + (piece.getAnchorRow() - visualFromRow) * progress;
+        fallingPieceGroup.setTranslateY(visualRow * cellSize);
     }
 
     // Pausing visual movement of this player's falling piece
     private void pausePieceAnimations() {
         if (horizontalAnimation != null) { horizontalAnimation.pause(); }
-        if (verticalAnimation != null) { verticalAnimation.pause(); }
     }
 
     // Resuming visual movement of this player's falling piece
     private void resumePieceAnimations() {
         if (horizontalAnimation != null) { horizontalAnimation.play(); }
-        if (verticalAnimation != null) { verticalAnimation.play(); }
     }
 
-    // Stopping current movement animations before locking or replacing piece
+    // Stopping current horizontal animation before locking or replacing piece
     private void stopPieceAnimations() {
         if (horizontalAnimation != null) {
             horizontalAnimation.stop();
             horizontalAnimation.setNode(null);
             horizontalAnimation = null;
-        }
-
-        if (verticalAnimation != null) {
-            verticalAnimation.stop();
-            verticalAnimation.setNode(null);
-            verticalAnimation = null;
         }
     }
 

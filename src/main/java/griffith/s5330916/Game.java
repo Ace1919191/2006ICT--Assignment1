@@ -75,13 +75,14 @@ public class Game {
         // Creating player one's board. In single player mode this board accepts
         // both WASD and Arrow Key controls so either control scheme works.
         String playerOneLabel = twoPlayerMode ? "Player 1 (WASD)" : "Player 1";
-        playerOne = new PlayerBoard(playerOneLabel, fieldHeight, fieldWidth, () -> handlePlayerGameOver(true),
+        playerOne = new PlayerBoard(playerOneLabel, "Human", fieldHeight, fieldWidth,
+                () -> handlePlayerGameOver(true),
                 pieceSequence);
 
         // Only creating a second board when Two Player Mode is enabled
         HBox boardsLayout;
         if (twoPlayerMode) {
-            playerTwo = new PlayerBoard("Player 2 (Arrow Keys)", fieldHeight, fieldWidth,
+            playerTwo = new PlayerBoard("Player 2 (Arrow Keys)", "Human", fieldHeight, fieldWidth,
                     () -> handlePlayerGameOver(false), pieceSequence);
             boardsLayout = new HBox(60, playerOne.getView(), playerTwo.getView());
         } else {

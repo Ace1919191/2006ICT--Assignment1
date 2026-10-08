@@ -4,6 +4,7 @@ import javafx.geometry.HPos;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
@@ -99,6 +100,19 @@ public class Settings {
                         .otherwise("Off")
         );
 
+        extendedModeCheckBox.selectedProperty().addListener((ignored, wasSelected, isSelected) -> {
+            if (isSelected) {
+            Alert alert = new Alert(
+                Alert.AlertType.ERROR,
+                "External mode is not supported in this version."
+            );
+            alert.setTitle("Extended Mode Error");
+            alert.setHeaderText("Unable to start external mode");
+            alert.initOwner(stage);
+            alert.showAndWait();
+            }
+        });
+
         // Updating displayed player-count label when the Two Player checkbox is toggled
         twoPlayerModeValue.textProperty().bind(
                 Bindings.when(twoPlayerModeCheckBox.selectedProperty())
@@ -135,6 +149,13 @@ public class Settings {
         settingsGrid.add(twoPlayerModeCheckBox, 1, 0);
         settingsGrid.add(twoPlayerModeValue, 2, 0);
 
+        settingsGrid.getChildren().stream()
+            .filter(node -> GridPane.getRowIndex(node) == 0)
+            .forEach(node -> {
+                node.visibleProperty().bind(extendedModeCheckBox.selectedProperty());
+                node.managedProperty().bind(extendedModeCheckBox.selectedProperty());
+            });
+
         // Adding Field Width controls
         settingsGrid.add(createLabel("Field Width (No. of cells):"), 0, 1);
         settingsGrid.add(widthSlider, 1, 1);
@@ -164,6 +185,13 @@ public class Settings {
         settingsGrid.add(createLabel("AI Player:"), 0, 6);
         settingsGrid.add(aiPlayerCheckBox, 1, 6);
         settingsGrid.add(aiPlayerValue, 2, 6);
+
+        settingsGrid.getChildren().stream()
+            .filter(node -> GridPane.getRowIndex(node) == 6)
+            .forEach(node -> {
+                node.visibleProperty().bind(extendedModeCheckBox.selectedProperty());
+                node.managedProperty().bind(extendedModeCheckBox.selectedProperty());
+            });
 
         // Adding Extended Mode controls
         settingsGrid.add(createLabel("Extended Mode:"), 0, 7);

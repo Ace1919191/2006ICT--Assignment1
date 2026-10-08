@@ -28,6 +28,7 @@ public class PlayerBoard {
                     "-fx-border-width: 0.5;";
 
     private final String playerName;
+    private final String playerType;
     private final int fieldHeight;
     private final int fieldWidth;
 
@@ -76,9 +77,10 @@ public class PlayerBoard {
 
     private VBox view;
 
-    public PlayerBoard(String playerName, int fieldHeight, int fieldWidth, Runnable onGameOver,
+    public PlayerBoard(String playerName, String playerType, int fieldHeight, int fieldWidth, Runnable onGameOver,
                        PieceSequence pieceSequence) {
         this.playerName = playerName;
+        this.playerType = playerType;
         this.fieldHeight = fieldHeight;
         this.fieldWidth = fieldWidth;
         this.onGameOver = onGameOver;
@@ -96,6 +98,9 @@ public class PlayerBoard {
         // Creating name label so each board can be told apart
         Label nameLabel = new Label(playerName);
         nameLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: yellow;");
+
+        Label playerTypeLabel = new Label("Player Type: " + playerType);
+        playerTypeLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: white;");
 
         // Creating GridPane which will contain all Tetris cells for this player
         GridPane gameGrid = new GridPane();
@@ -160,6 +165,7 @@ public class PlayerBoard {
         view = new VBox(
                 10,
                 nameLabel,
+                playerTypeLabel,
                 boardStack,
                 statusLabel,
                 levelLabel,

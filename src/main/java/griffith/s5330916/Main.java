@@ -4,7 +4,9 @@ import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.StackPane;
@@ -138,9 +140,16 @@ public class Main extends Application {
         scoresButton.setOnAction(ignored -> HighScores.show(stage, () -> showMainWindow(stage)));
         settingsButton.setOnAction(ignored -> Settings.show(stage, () -> showMainWindow(stage)));
         exitButton.setOnAction(ignored -> {
-            stage.close();
-            System.exit(0);
+            Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, "Are you sure you want to exit?");
+            confirm.setHeaderText(null);
+            confirm.initOwner(stage);
+
+            if (confirm.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK) {
+                stage.close();
+                System.exit(0);
+            }
         });
+
 
         menuLayout.getChildren().addAll(playButton, scoresButton, settingsButton, exitButton);
 

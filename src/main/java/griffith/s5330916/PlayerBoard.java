@@ -8,6 +8,7 @@ import javafx.animation.Timeline;
 import javafx.animation.TranslateTransition;
 import javafx.geometry.Pos;
 import javafx.scene.Group;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Label;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
@@ -59,6 +60,7 @@ public class PlayerBoard {
     private GameBoard gameBoard;
     private PieceController pieceController;
     private boolean aiMoveApplied;
+    private boolean serverWarningShown = false;
     private double cellSize;
 
     // Each Pane represents one visible space in this player's grid
@@ -500,6 +502,22 @@ public class PlayerBoard {
         if (externalPlayer && !waitingForAIMove && pendingAIMove != null) {
             applyAIMove();
         }
+        if (externalPlayer && waitingForAIMove && pendingAIMove == null) {
+            if (!serverWarningShown) {
+                serverWarningShown = true;
+
+                javafx.application.Platform.runLater(() -> {
+                    Alert alert = new Alert(
+                            Alert.AlertType.ERROR,
+                            "External Mode is enabled, but TetrisServer is not running." +
+                                    "Pieces cannot move until the server is started."
+                    );
+                    alert.setTitle("TetrisServer Offline");
+                    alert.setHeaderText("External Mode Warning");
+                    alert.showAndWait();
+                });
+            }
+        }
 
         int previousRow = pieceController.getCurrentPiece().getAnchorRow();
 
@@ -667,7 +685,7 @@ public class PlayerBoard {
 
         // Removing separate falling visual because piece is now part of grid
         fallingPieceGroup.getChildren().clear();
-
+        serverWarningShown = false;
         renderGrid();
     }
 
@@ -880,10 +898,10 @@ public class PlayerBoard {
 
         int maxHeight = max(colHeights);
 
-        return (180 * cleared)
-                - (25 * maxHeight)
-                - (18 * bump)
-                - (80 * holes);
+        return (120.0 * cleared)
+                - (40.0 * maxHeight)
+                - (15.0 * bump)
+                - (80.0 * holes);
     }
 
     private int max(int[] arr) {

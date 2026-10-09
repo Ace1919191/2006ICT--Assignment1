@@ -98,19 +98,21 @@ public class Game {
 
         // Creating player one's board. In single player mode this board accepts
         // both WASD and Arrow Key controls so either control scheme works.
+        String playerOneType = player1Ai ? "AI" : player1External ? "External" : "Human";
         String playerOneLabel = twoPlayerMode ? "Player 1 (WASD)" : "Player 1";
-
-        playerOne = new PlayerBoard(playerOneLabel, "Human", fieldHeight, fieldWidth,
+        playerOne = new PlayerBoard(playerOneLabel, playerOneType, fieldHeight, fieldWidth,
                 () -> handlePlayerGameOver(true),
                 pieceSequence);
-        playerOne.setAiPlayer(player1Ai);
-        playerOne.setHumanPlayer(player1Human);
-        playerOne.setExternalPlayer(player1External);
+                playerOne.setAiPlayer(player1Ai);
+                playerOne.setHumanPlayer(player1Human);
+                playerOne.setExternalPlayer(player1External);
 
         // Only creating a second board when Two Player Mode is enabled
         HBox boardsLayout;
+        String playerTwoType = player2Ai ? "AI" : player2External ? "External" : "Human";
+
         if (twoPlayerMode) {
-            playerTwo = new PlayerBoard("Player 2 (Arrow Keys)", "Human", fieldHeight, fieldWidth,
+            playerTwo = new PlayerBoard("Player 2 (Arrow Keys)", playerTwoType, fieldHeight, fieldWidth,
                     () -> handlePlayerGameOver(false), pieceSequence);
             playerTwo.setAiPlayer(player2Ai);
             playerTwo.setHumanPlayer(player2Human);

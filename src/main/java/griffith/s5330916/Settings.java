@@ -164,14 +164,11 @@ public class Settings {
                         .otherwise("1 Player")
         );
 
-        // Hide Player 2 options unless External Mode is enabled
-        player2AiCheckBox.visibleProperty().bind(player1ExternalCheckBox.selectedProperty());
-        player2HumanCheckBox.visibleProperty().bind(player1ExternalCheckBox.selectedProperty());
-        player2ExternalCheckBox.visibleProperty().bind(player1ExternalCheckBox.selectedProperty());
 
-        player2AiCheckBox.managedProperty().bind(player1ExternalCheckBox.selectedProperty());
-        player2HumanCheckBox.managedProperty().bind(player1ExternalCheckBox.selectedProperty());
-        player2ExternalCheckBox.managedProperty().bind(player1ExternalCheckBox.selectedProperty());
+// Grey out Player 2 options unless Extended Mode is enabled
+        player2AiCheckBox.disableProperty().bind(twoPlayerModeCheckBox.selectedProperty().not());
+        player2HumanCheckBox.disableProperty().bind(twoPlayerModeCheckBox.selectedProperty().not());
+        player2ExternalCheckBox.disableProperty().bind(twoPlayerModeCheckBox.selectedProperty().not());
 
         // GridPane allows each setting to remain aligned into three columns
         GridPane settingsGrid = new GridPane();

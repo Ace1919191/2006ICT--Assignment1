@@ -4,7 +4,9 @@ import javafx.geometry.HPos;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
@@ -95,15 +97,35 @@ public class HighScores {
             GridPane.setHalignment(noScoresLabel, HPos.CENTER);
         }
 
-        // Creating Back Button for High Scores Screen
+        // Creating Back and Clear Scores buttons for High Scores Screen
         Button backButton = new Button("Back");
+        Button clearButton = new Button("Clear High Scores");
         backButton.setStyle(MENU_BUTTON_STYLE);
+        clearButton.setStyle(MENU_BUTTON_STYLE);
         backButton.setPrefWidth(150);
+        clearButton.setPrefWidth(200);
 
         // Returning user back to Main Menu
         backButton.setOnAction(ignored -> onBack.run());
 
-        HBox buttonRow = new HBox(20, backButton);
+        clearButton.setOnAction(ignored -> {
+            Alert confirmation = new Alert(
+                    Alert.AlertType.CONFIRMATION,
+                    "Are you sure you want to clear all high scores?",
+                    ButtonType.YES,
+                    ButtonType.NO
+            );
+            confirmation.setTitle("Clear High Scores");
+            confirmation.setHeaderText("Delete all saved scores?");
+            confirmation.initOwner(stage);
+
+            if (confirmation.showAndWait().orElse(ButtonType.NO) == ButtonType.YES) {
+                clearScores();
+                show(stage, onBack);
+            }
+        });
+
+        HBox buttonRow = new HBox(20, clearButton, backButton);
         buttonRow.setAlignment(Pos.CENTER);
 
         // VBox holds the High Scores Screen vertically
@@ -150,6 +172,10 @@ public class HighScores {
         );
 
         writeScores(scores);
+    }
+
+    public static void clearScores() {
+        writeScores(new ArrayList<>());
     }
 
     // Reading player identifiers and scores from JSON file

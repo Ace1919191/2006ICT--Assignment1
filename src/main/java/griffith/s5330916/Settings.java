@@ -4,6 +4,7 @@ import javafx.geometry.HPos;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
@@ -162,6 +163,15 @@ public class Settings {
                         .then("2 Players")
                         .otherwise("1 Player")
         );
+
+        // Hide Player 2 options unless External Mode is enabled
+        player2AiCheckBox.visibleProperty().bind(player1ExternalCheckBox.selectedProperty());
+        player2HumanCheckBox.visibleProperty().bind(player1ExternalCheckBox.selectedProperty());
+        player2ExternalCheckBox.visibleProperty().bind(player1ExternalCheckBox.selectedProperty());
+
+        player2AiCheckBox.managedProperty().bind(player1ExternalCheckBox.selectedProperty());
+        player2HumanCheckBox.managedProperty().bind(player1ExternalCheckBox.selectedProperty());
+        player2ExternalCheckBox.managedProperty().bind(player1ExternalCheckBox.selectedProperty());
 
         // GridPane allows each setting to remain aligned into three columns
         GridPane settingsGrid = new GridPane();
